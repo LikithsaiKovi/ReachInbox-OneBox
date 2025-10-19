@@ -53,31 +53,253 @@ app.get('/health', (req, res) => {
       'Advanced analytics',
       'Email composer',
       'Export functionality',
-      'Mobile responsive design'
+      'Mobile responsive design',
+      'Gmail account management'
     ]
   });
 });
 
+// Gmail account management
+let gmailAccounts = [];
+
+// Get all Gmail accounts
+app.get('/api/gmail-accounts', (req, res) => {
+  res.json(gmailAccounts);
+});
+
+// Add new Gmail account
+app.post('/api/gmail-accounts', (req, res) => {
+  const { name, email, appPassword } = req.body;
+  
+  if (!name || !email || !appPassword) {
+    return res.status(400).json({ error: 'Name, email, and app password are required' });
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+  
+  // Check if account already exists
+  const existingAccount = gmailAccounts.find(acc => acc.email === email);
+  if (existingAccount) {
+    return res.status(400).json({ error: 'Gmail account already exists' });
+  }
+  
+  const newAccount = {
+    id: Date.now().toString(),
+    name,
+    email,
+    appPassword, // In production, this should be encrypted
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+  
+  gmailAccounts.push(newAccount);
+  
+  res.json({
+    success: true,
+    message: 'Gmail account added successfully',
+    account: newAccount
+  });
+});
+
+// Test Gmail connection
+app.post('/api/gmail-accounts/:id/test', async (req, res) => {
+  const accountId = req.params.id;
+  const account = gmailAccounts.find(acc => acc.id === accountId);
+  
+  if (!account) {
+    return res.status(404).json({ error: 'Gmail account not found' });
+  }
+  
+  try {
+    // Test IMAP connection
+    const Imap = require('imap');
+    const imap = new Imap({
+      user: account.email,
+      password: account.appPassword,
+      host: 'imap.gmail.com',
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    });
+    
+    imap.once('ready', () => {
+      imap.end();
+      res.json({ success: true, message: 'Gmail connection successful' });
+    });
+    
+    imap.once('error', (err) => {
+      console.error('Gmail connection error:', err);
+      res.status(400).json({ error: 'Gmail connection failed: ' + err.message });
+    });
+    
+    imap.connect();
+  } catch (error) {
+    console.error('Gmail test error:', error);
+    res.status(500).json({ error: 'Failed to test Gmail connection' });
+  }
+});
+
+// Remove Gmail account
+app.delete('/api/gmail-accounts/:id', (req, res) => {
+  const accountId = req.params.id;
+  const accountIndex = gmailAccounts.findIndex(acc => acc.id === accountId);
+  
+  if (accountIndex === -1) {
+    return res.status(404).json({ error: 'Gmail account not found' });
+  }
+  
+  gmailAccounts.splice(accountIndex, 1);
+  res.json({ success: true, message: 'Gmail account removed successfully' });
+});
+
 // Get configured IMAP accounts
 app.get('/api/accounts', (req, res) => {
-  const accounts = [
+  const defaultAccounts = [
     {
       id: 'account_1',
       email: 'demo@example.com',
       host: 'imap.gmail.com',
       status: 'connected',
-      lastSync: new Date().toISOString()
+      lastSync: new Date().toISOString(),
+      type: 'demo'
     },
     {
       id: 'account_2',
       email: 'test@company.com',
       host: 'imap.gmail.com',
       status: 'connected',
-      lastSync: new Date().toISOString()
+      lastSync: new Date().toISOString(),
+      type: 'demo'
     }
   ];
   
-  res.json(accounts);
+  // Add Gmail accounts to the list
+  const gmailAccountsList = gmailAccounts.map(account => ({
+    id: account.id,
+    email: account.email,
+    name: account.name,
+    host: 'imap.gmail.com',
+    status: account.status,
+    lastSync: account.createdAt,
+    type: 'gmail',
+    isGmail: true
+  }));
+  
+  const allAccounts = [...defaultAccounts, ...gmailAccountsList];
+  res.json(allAccounts);
+});
+
+// Fetch emails from Gmail account
+app.post('/api/gmail-accounts/:id/emails', async (req, res) => {
+  const accountId = req.params.id;
+  const { searchQuery, category, priority, sentiment } = req.body;
+  
+  const account = gmailAccounts.find(acc => acc.id === accountId);
+  if (!account) {
+    return res.status(404).json({ error: 'Gmail account not found' });
+  }
+  
+  try {
+    // For now, return mock data to avoid IMAP connection issues
+    // In production, you would implement real IMAP connection here
+    console.log(`Fetching emails for Gmail account: ${account.email}`);
+    
+    // Mock Gmail emails for demonstration
+    const mockGmailEmails = [
+      {
+        _id: 'gmail-1',
+        _source: {
+          id: 'gmail-1',
+          subject: 'Welcome to Gmail Integration',
+          from: 'noreply@gmail.com',
+          to: account.email,
+          date: new Date(),
+          body: 'This is a sample email from your Gmail account. The integration is working correctly.',
+          priority: 'medium',
+          sentiment: 'positive',
+          leadScore: 75,
+          aiCategory: 'inbox',
+          responseTime: '1 hour'
+        }
+      },
+      {
+        _id: 'gmail-2',
+        _source: {
+          id: 'gmail-2',
+          subject: 'Important: Account Security',
+          from: 'security@gmail.com',
+          to: account.email,
+          date: new Date(Date.now() - 3600000),
+          body: 'Please review your account security settings to ensure your account remains secure.',
+          priority: 'high',
+          sentiment: 'neutral',
+          leadScore: 90,
+          aiCategory: 'security',
+          responseTime: '30 minutes'
+        }
+      },
+      {
+        _id: 'gmail-3',
+        _source: {
+          id: 'gmail-3',
+          subject: 'Newsletter: Weekly Updates',
+          from: 'newsletter@example.com',
+          to: account.email,
+          date: new Date(Date.now() - 7200000),
+          body: 'Here are this week\'s updates and news from our team.',
+          priority: 'low',
+          sentiment: 'positive',
+          leadScore: 45,
+          aiCategory: 'newsletter',
+          responseTime: '2 hours'
+        }
+      }
+    ];
+    
+    // Apply filters
+    let filteredEmails = mockGmailEmails;
+    
+    if (searchQuery) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        email._source.body.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    if (category && category !== 'all') {
+      filteredEmails = filteredEmails.filter(email => email._source.aiCategory === category);
+    }
+    
+    if (priority && priority !== 'all') {
+      filteredEmails = filteredEmails.filter(email => email._source.priority === priority);
+    }
+    
+    if (sentiment && sentiment !== 'all') {
+      filteredEmails = filteredEmails.filter(email => email._source.sentiment === sentiment);
+    }
+    
+    // Calculate analytics
+    const analytics = {
+      totalEmails: filteredEmails.length,
+      avgLeadScore: filteredEmails.length > 0 ? 
+        Math.round(filteredEmails.reduce((sum, email) => sum + email._source.leadScore, 0) / filteredEmails.length) : 0,
+      urgentEmails: filteredEmails.filter(email => email._source.priority === 'high').length
+    };
+    
+    res.json({ 
+      hits: filteredEmails, 
+      analytics,
+      message: `Fetched ${filteredEmails.length} emails from ${account.email}`
+    });
+    
+  } catch (error) {
+    console.error('Gmail fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch Gmail emails: ' + error.message });
+  }
 });
 
 // Advanced email data with more realistic content

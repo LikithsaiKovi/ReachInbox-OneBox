@@ -11,11 +11,11 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Cache directories
-.cache/
-.cursor/
-.local/
-.docker/
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS generated files
 .DS_Store
@@ -25,12 +25,6 @@ yarn-error.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
 
 # Logs
 logs
