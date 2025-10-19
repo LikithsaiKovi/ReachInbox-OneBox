@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: reachinbox-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - reachinbox-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: reachinbox-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - reachinbox-network
+
+volumes:
+  es_data:
+  qdrant_data:
+
+networks:
+  reachinbox-network:
+    driver: bridge

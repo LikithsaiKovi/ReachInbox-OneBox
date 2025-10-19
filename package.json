@@ -1,0 +1,49 @@
+{
+  "name": "reachinbox-onebox",
+  "version": "1.0.0",
+  "description": "Realtime IMAP -> Elasticsearch -> AI categorization -> Slack/webhook -> RAG suggested replies",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "demo": "ts-node src/server-demo.ts",
+    "demo-js": "node server-demo.js",
+    "advanced": "node server-advanced.js",
+    "grok": "node server-grok.js",
+    "real-gmail": "node server-real-gmail.js",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.11.0",
+    "@qdrant/js-client-rest": "^1.6.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "imap": "^0.8.19",
+    "mailparser": "^3.7.5",
+    "node-fetch": "^3.3.2",
+    "node-imap": "^0.9.6",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/mailparser": "^3.4.6",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
+  },
+  "keywords": [
+    "imap",
+    "email",
+    "ai",
+    "elasticsearch",
+    "rag",
+    "slack"
+  ],
+  "author": "ReachInbox Team",
+  "license": "MIT"
+}
