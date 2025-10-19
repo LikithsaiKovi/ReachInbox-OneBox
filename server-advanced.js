@@ -7,6 +7,14 @@ const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+require('dotenv').config();
+
+
+// Debug environment variables
+console.log('🔧 Environment Variables Debug:');
+console.log('SLACK_BOT_TOKEN:', process.env.SLACK_BOT_TOKEN ? 'SET (' + process.env.SLACK_BOT_TOKEN.length + ' chars)' : 'NOT SET');
+console.log('SLACK_CHANNEL_ID:', process.env.SLACK_CHANNEL_ID || 'NOT SET');
+console.log('WEBHOOK_URL:', process.env.WEBHOOK_URL || 'NOT SET');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -63,7 +71,31 @@ app.get('/health', (req, res) => {
 });
 
 // Gmail account management
+// Load accounts from file
 let gmailAccounts = [];
+const accountsFile = path.join(__dirname, 'src', 'accounts.json');
+
+// Load existing accounts
+try {
+  if (fs.existsSync(accountsFile)) {
+    const data = fs.readFileSync(accountsFile, 'utf8');
+    gmailAccounts = JSON.parse(data);
+    console.log(`📧 Loaded ${gmailAccounts.length} Gmail accounts from storage`);
+  }
+} catch (error) {
+  console.error('Error loading accounts:', error);
+  gmailAccounts = [];
+}
+
+// Function to save accounts to file
+const saveAccounts = () => {
+  try {
+    fs.writeFileSync(accountsFile, JSON.stringify(gmailAccounts, null, 2));
+    console.log('💾 Gmail accounts saved to storage');
+  } catch (error) {
+    console.error('Error saving accounts:', error);
+  }
+};
 let gmailEmails = [];
 
 // Get all Gmail accounts
@@ -101,6 +133,9 @@ app.post('/api/gmail-accounts', (req, res) => {
   };
   
   gmailAccounts.push(newAccount);
+  
+  // Save accounts to file
+  saveAccounts();
   
   res.json({
     success: true,
@@ -157,6 +192,10 @@ app.delete('/api/gmail-accounts/:id', (req, res) => {
   }
   
   gmailAccounts.splice(accountIndex, 1);
+  
+  // Save accounts to file
+  saveAccounts();
+  
   res.json({ success: true, message: 'Gmail account removed successfully' });
 });
 
@@ -169,7 +208,9 @@ async function fetchGmailEmails(account) {
       host: 'imap.gmail.com',
       port: 993,
       tls: true,
-      tlsOptions: { rejectUnauthorized: false }
+      tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 30000, // 30 second connection timeout
+      authTimeout: 30000  // 30 second auth timeout
     });
 
     const emails = [];
@@ -182,8 +223,8 @@ async function fetchGmailEmails(account) {
           return;
         }
 
-        // Search for recent emails
-        imap.search(['UNSEEN', ['SINCE', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)]], (err, results) => {
+        // Search for all emails (we'll limit to 50 most recent)
+        imap.search(['ALL'], (err, results) => {
           if (err) {
             reject(err);
             return;
@@ -195,7 +236,9 @@ async function fetchGmailEmails(account) {
             return;
           }
 
-          const fetch = imap.fetch(results, { bodies: '' });
+          // Limit to 50 most recent emails for better coverage
+          const limitedResults = results.slice(-50);
+          const fetch = imap.fetch(limitedResults, { bodies: '' });
           let processedCount = 0;
 
           fetch.on('message', (msg, seqno) => {
@@ -222,14 +265,20 @@ async function fetchGmailEmails(account) {
                 // Analyze email content for AI categorization
                 const analysis = performEmailAnalysis(parsed);
 
+                // Clean and format email content for better readability
+                const cleanBody = cleanEmailContent(parsed.text || parsed.html || 'No content');
+                const cleanSubject = (parsed.subject || 'No Subject').trim();
+                const cleanFrom = extractEmailAddress(parsed.from?.text || parsed.from?.value?.[0]?.address || 'Unknown');
+                const cleanTo = extractEmailAddress(parsed.to?.text || parsed.to?.value?.[0]?.address || account.email);
+
                 const emailData = {
                   _id: `gmail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                   _source: {
                     id: `gmail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    subject: parsed.subject || 'No Subject',
-                    from: parsed.from?.text || parsed.from?.value?.[0]?.address || 'Unknown',
-                    to: parsed.to?.text || parsed.to?.value?.[0]?.address || account.email,
-                    body: parsed.text || parsed.html || 'No content',
+                    subject: cleanSubject,
+                    from: cleanFrom,
+                    to: cleanTo,
+                    body: cleanBody,
                     date: parsed.date?.toISOString() || new Date().toISOString(),
                     aiCategory: analysis.category,
                     accountId: account.id,
@@ -239,14 +288,109 @@ async function fetchGmailEmails(account) {
                     leadScore: analysis.leadScore,
                     responseTime: '2 hours',
                     attachments: parsed.attachments?.map(att => att.filename) || [],
-                    threadId: `thread_${Math.random().toString(36).substr(2, 9)}`
+                    threadId: `thread_${Math.random().toString(36).substr(2, 9)}`,
+                    // Add human-readable date
+                    readableDate: parsed.date ? parsed.date.toLocaleString() : new Date().toLocaleString(),
+                    // Add snippet for preview
+                    snippet: cleanBody.substring(0, 150) + (cleanBody.length > 150 ? '...' : '')
                   }
                 };
+
+                // Trigger integrations if email is marked as "Interested"
+                if (analysis.category === 'Interested') {
+                  console.log(`🔔 Triggering integrations for interested email: ${cleanSubject}`);
+                  
+                  // Trigger Slack notification
+                  if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL_ID) {
+                    const { WebClient } = require('@slack/web-api');
+                    const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+                    
+                    slackClient.chat.postMessage({
+                      channel: process.env.SLACK_CHANNEL_ID,
+                      text: `New Interested Email ✉️`,
+                      blocks: [
+                        {
+                          type: 'header',
+                          text: {
+                            type: 'plain_text',
+                            text: 'New Interested Email ✉️'
+                          }
+                        },
+                        {
+                          type: 'section',
+                          fields: [
+                            {
+                              type: 'mrkdwn',
+                              text: `*From:* ${cleanFrom}`
+                            },
+                            {
+                              type: 'mrkdwn',
+                              text: `*Subject:* ${cleanSubject}`
+                            },
+                            {
+                              type: 'mrkdwn',
+                              text: `*Snippet:* ${cleanBody.substring(0, 150)}${cleanBody.length > 150 ? '...' : ''}`
+                            },
+                            {
+                              type: 'mrkdwn',
+                              text: `*Timestamp:* ${parsed.date ? parsed.date.toLocaleString() : new Date().toLocaleString()}`
+                            }
+                          ]
+                        }
+                      ]
+                    }).then(result => {
+                      if (result.ok) {
+                        console.log('✅ Slack notification sent successfully');
+                      } else {
+                        console.error('❌ Slack API error:', result.error);
+                      }
+                    }).catch(error => {
+                      console.error('❌ Error sending Slack notification:', error);
+                    });
+                  } else {
+                    console.log('⚠️ Slack Bot API not configured (SLACK_BOT_TOKEN or SLACK_CHANNEL_ID missing)');
+                  }
+                  
+                  // Trigger webhook
+                  if (process.env.WEBHOOK_URL) {
+                    const axios = require('axios');
+                    const webhookPayload = {
+                      event: 'email_interested',
+                      email: {
+                        from: cleanFrom,
+                        subject: cleanSubject,
+                        snippet: cleanBody.substring(0, 150) + (cleanBody.length > 150 ? '...' : ''),
+                        received_at: parsed.date?.toISOString() || new Date().toISOString(),
+                        email_id: emailData._id,
+                        account_id: account.id,
+                        ai_category: 'Interested'
+                      }
+                    };
+                    
+                    axios.post(process.env.WEBHOOK_URL, webhookPayload, {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'ReachInbox-Onebox/1.0'
+                      },
+                      timeout: 10000
+                    }).then(response => {
+                      if (response.status >= 200 && response.status < 300) {
+                        console.log('✅ Webhook triggered successfully');
+                      } else {
+                        console.error('❌ Webhook returned status:', response.status);
+                      }
+                    }).catch(error => {
+                      console.error('❌ Error triggering webhook:', error);
+                    });
+                  } else {
+                    console.log('⚠️ Webhook not configured (WEBHOOK_URL missing)');
+                  }
+                }
 
                 emails.push(emailData);
                 processedCount++;
 
-                if (processedCount === results.length) {
+                if (processedCount === limitedResults.length) {
                   imap.end();
                   resolve(emails);
                 }
@@ -276,6 +420,52 @@ async function fetchGmailEmails(account) {
   });
 }
 
+// Helper function to clean email content for better readability
+function cleanEmailContent(content) {
+  if (!content) return 'No content';
+  
+  // Remove HTML tags and decode HTML entities
+  let cleaned = content
+    .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&') // Decode &amp;
+    .replace(/&lt;/g, '<') // Decode &lt;
+    .replace(/&gt;/g, '>') // Decode &gt;
+    .replace(/&quot;/g, '"') // Decode &quot;
+    .replace(/&#39;/g, "'") // Decode &#39;
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+  
+  // Remove common email signatures and footers
+  cleaned = cleaned
+    .replace(/Sent from my iPhone.*$/g, '')
+    .replace(/Sent from my Android.*$/g, '')
+    .replace(/Get Outlook for.*$/g, '')
+    .replace(/This email was sent.*$/g, '')
+    .replace(/Unsubscribe.*$/g, '')
+    .trim();
+  
+  return cleaned;
+}
+
+// Helper function to extract clean email address
+function extractEmailAddress(emailString) {
+  if (!emailString) return 'Unknown';
+  
+  // Extract email from "Name <email@domain.com>" format
+  const emailMatch = emailString.match(/<([^>]+)>/);
+  if (emailMatch) {
+    return emailMatch[1];
+  }
+  
+  // If it's already a clean email, return as is
+  if (emailString.includes('@')) {
+    return emailString;
+  }
+  
+  return emailString;
+}
+
 // AI-powered email analysis
 function performEmailAnalysis(parsedEmail) {
   const subject = (parsedEmail.subject || '').toLowerCase();
@@ -287,38 +477,63 @@ function performEmailAnalysis(parsedEmail) {
   let sentiment = 'neutral';
   let leadScore = 50;
 
-  // Category analysis
+  // Enhanced category analysis with more patterns
   if (subject.includes('interested') || subject.includes('demo') || subject.includes('pricing') || 
-      body.includes('interested') || body.includes('demo') || body.includes('pricing')) {
+      subject.includes('quote') || subject.includes('proposal') || subject.includes('partnership') ||
+      body.includes('interested') || body.includes('demo') || body.includes('pricing') ||
+      body.includes('collaborate') || body.includes('partnership') || body.includes('opportunity')) {
     category = 'Interested';
     priority = 'high';
     sentiment = 'positive';
     leadScore = 85;
-  } else if (subject.includes('meeting') || subject.includes('call') || subject.includes('schedule')) {
+  } else if (subject.includes('meeting') || subject.includes('call') || subject.includes('schedule') ||
+             subject.includes('appointment') || subject.includes('conference') || subject.includes('zoom')) {
     category = 'Meeting';
     priority = 'high';
     sentiment = 'positive';
     leadScore = 80;
-  } else if (subject.includes('urgent') || subject.includes('asap') || subject.includes('immediately')) {
+  } else if (subject.includes('urgent') || subject.includes('asap') || subject.includes('immediately') ||
+             subject.includes('emergency') || subject.includes('critical') || subject.includes('important')) {
     category = 'Urgent';
     priority = 'urgent';
     sentiment = 'neutral';
     leadScore = 90;
-  } else if (subject.includes('complaint') || subject.includes('issue') || subject.includes('problem')) {
+  } else if (subject.includes('complaint') || subject.includes('issue') || subject.includes('problem') ||
+             subject.includes('refund') || subject.includes('cancel') || subject.includes('disappointed')) {
     category = 'Complaint';
     priority = 'high';
     sentiment = 'negative';
     leadScore = 70;
-  } else if (subject.includes('newsletter') || subject.includes('unsubscribe')) {
+  } else if (subject.includes('newsletter') || subject.includes('unsubscribe') || subject.includes('marketing') ||
+             subject.includes('promotion') || subject.includes('sale') || subject.includes('offer')) {
     category = 'Newsletter';
     priority = 'low';
     sentiment = 'neutral';
     leadScore = 20;
-  } else if (subject.includes('invoice') || subject.includes('payment') || subject.includes('billing')) {
+  } else if (subject.includes('invoice') || subject.includes('payment') || subject.includes('billing') ||
+             subject.includes('receipt') || subject.includes('transaction') || subject.includes('money')) {
     category = 'Billing';
     priority = 'medium';
     sentiment = 'neutral';
     leadScore = 40;
+  } else if (subject.includes('job') || subject.includes('career') || subject.includes('hiring') ||
+             subject.includes('resume') || subject.includes('interview') || subject.includes('position')) {
+    category = 'Job';
+    priority = 'medium';
+    sentiment = 'positive';
+    leadScore = 60;
+  } else if (subject.includes('security') || subject.includes('login') || subject.includes('password') ||
+             subject.includes('verification') || subject.includes('alert') || subject.includes('access')) {
+    category = 'Security';
+    priority = 'high';
+    sentiment = 'neutral';
+    leadScore = 75;
+  } else if (subject.includes('social') || subject.includes('linkedin') || subject.includes('facebook') ||
+             subject.includes('twitter') || subject.includes('instagram') || subject.includes('follow')) {
+    category = 'Social';
+    priority = 'low';
+    sentiment = 'neutral';
+    leadScore = 30;
   }
 
   // Sentiment analysis
@@ -636,6 +851,7 @@ app.get('/api/emails/search', async (req, res) => {
     } = req.query;
     
     // Filter emails based on search criteria - only real Gmail emails
+    console.log(`📊 Debug: gmailEmails array length: ${gmailEmails.length}`);
     let filteredEmails = [...gmailEmails];
     
     if (q) {
@@ -817,7 +1033,7 @@ app.get('/api/emails/export', async (req, res) => {
 app.get('/api/emails/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const email = mockEmails.find(e => e._id === id);
+    const email = gmailEmails.find(e => e._id === id);
     
     if (!email) {
       return res.status(404).json({ error: 'Email not found' });
@@ -833,11 +1049,123 @@ app.get('/api/emails/:id', async (req, res) => {
   }
 });
 
+// Enhanced email categorization based on content and subject
+app.post('/api/emails/categorize', async (req, res) => {
+  try {
+    const { emails } = req.body;
+    
+    if (!emails || !Array.isArray(emails)) {
+      return res.status(400).json({ error: 'Emails array is required' });
+    }
+
+    const categorizedEmails = emails.map(email => {
+      const subject = email.subject || email._source?.subject || '';
+      const body = email.body || email._source?.body || '';
+      const from = email.from || email._source?.from || '';
+      
+      // Enhanced categorization logic
+      let category = 'Uncategorized';
+      let priority = 'medium';
+      let sentiment = 'neutral';
+      let leadScore = 50;
+      
+      // Subject-based categorization
+      const subjectLower = subject.toLowerCase();
+      const bodyLower = body.toLowerCase();
+      
+      // Business/Professional emails
+      if (subjectLower.includes('meeting') || subjectLower.includes('call') || subjectLower.includes('demo')) {
+        category = 'Meeting Booked';
+        priority = 'high';
+        sentiment = 'positive';
+        leadScore = 80;
+      }
+      // Interested/Inquiry emails
+      else if (subjectLower.includes('interested') || subjectLower.includes('inquiry') || 
+               subjectLower.includes('quote') || subjectLower.includes('pricing') ||
+               bodyLower.includes('interested') || bodyLower.includes('learn more')) {
+        category = 'Interested';
+        priority = 'high';
+        sentiment = 'positive';
+        leadScore = 85;
+      }
+      // Complaint/Support emails
+      else if (subjectLower.includes('complaint') || subjectLower.includes('issue') || 
+               subjectLower.includes('problem') || subjectLower.includes('refund') ||
+               bodyLower.includes('complaint') || bodyLower.includes('issue')) {
+        category = 'Complaint';
+        priority = 'high';
+        sentiment = 'negative';
+        leadScore = 70;
+      }
+      // Spam/Newsletter emails
+      else if (subjectLower.includes('unsubscribe') || subjectLower.includes('newsletter') ||
+               from.includes('noreply') || from.includes('no-reply') ||
+               bodyLower.includes('unsubscribe')) {
+        category = 'Spam';
+        priority = 'low';
+        sentiment = 'neutral';
+        leadScore = 20;
+      }
+      // Out of Office emails
+      else if (subjectLower.includes('out of office') || subjectLower.includes('vacation') ||
+               bodyLower.includes('out of office') || bodyLower.includes('vacation')) {
+        category = 'Out of Office';
+        priority = 'medium';
+        sentiment = 'neutral';
+        leadScore = 30;
+      }
+      // Security/System emails
+      else if (subjectLower.includes('security') || subjectLower.includes('verification') ||
+               subjectLower.includes('password') || subjectLower.includes('alert')) {
+        category = 'Security';
+        priority = 'high';
+        sentiment = 'neutral';
+        leadScore = 60;
+      }
+      // Travel/Booking emails
+      else if (subjectLower.includes('booking') || subjectLower.includes('travel') ||
+               subjectLower.includes('hotel') || subjectLower.includes('flight')) {
+        category = 'Travel';
+        priority = 'medium';
+        sentiment = 'positive';
+        leadScore = 40;
+      }
+      // Social media notifications
+      else if (from.includes('instagram') || from.includes('facebook') || 
+               from.includes('twitter') || from.includes('linkedin')) {
+        category = 'Social';
+        priority = 'low';
+        sentiment = 'neutral';
+        leadScore = 25;
+      }
+      
+      return {
+        ...email,
+        aiCategory: category,
+        priority: priority,
+        sentiment: sentiment,
+        leadScore: leadScore
+      };
+    });
+
+    res.json({
+      success: true,
+      categorizedEmails: categorizedEmails,
+      message: `Successfully categorized ${categorizedEmails.length} emails`
+    });
+
+  } catch (error) {
+    console.error('Error categorizing emails:', error);
+    res.status(500).json({ error: 'Failed to categorize emails' });
+  }
+});
+
 // Advanced AI reply suggestions with context
 app.post('/api/emails/:id/suggest-reply', async (req, res) => {
   try {
     const { id } = req.params;
-    const email = mockEmails.find(e => e._id === id);
+    const email = gmailEmails.find(e => e._id === id);
     
     if (!email) {
       return res.status(404).json({ error: 'Email not found' });
@@ -927,7 +1255,7 @@ app.post('/api/emails/:id/reply', async (req, res) => {
     }
 
     // Create SMTP transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: account.email,
@@ -1057,45 +1385,153 @@ app.post('/api/emails/compose', async (req, res) => {
 // Test integrations endpoint
 app.post('/api/test-integrations', async (req, res) => {
   try {
-    console.log('Integration test triggered');
+    console.log('🧪 Integration test triggered');
     
-    // Simulate Slack notification
-    const slackPayload = {
-      text: '🎯 New Interested Lead Detected!',
+    // Create test email data
+    const testEmailData = {
+      id: 'test-email-' + Date.now(),
+      accountId: 'test-account',
+      folder: 'INBOX',
+      subject: 'Test Email - Interested in Your Product',
+      body: 'This is a test email to verify that integrations are working correctly. The sender is genuinely interested in learning more about your product and would like to schedule a demo.',
+      from: 'John Doe <john.doe@example.com>',
+      to: ['sales@company.com'],
+      date: new Date(),
+      aiCategory: 'Interested'
+    };
+    
+    // Test Slack Bot API integration
+    if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL_ID) {
+      try {
+        const { WebClient } = require('@slack/web-api');
+        const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+        
+        const result = await slackClient.chat.postMessage({
+          channel: process.env.SLACK_CHANNEL_ID,
+          text: `New Interested Email ✉️`,
       blocks: [
         {
           type: 'header',
-          text: { type: 'plain_text', text: '🎯 New Interested Lead' }
+              text: {
+                type: 'plain_text',
+                text: 'New Interested Email ✉️'
+              }
         },
         {
           type: 'section',
           fields: [
-            { type: 'mrkdwn', text: '*Subject:* Interested in your SaaS platform' },
-            { type: 'mrkdwn', text: '*From:* john.smith@techcorp.com' },
-            { type: 'mrkdwn', text: '*Lead Score:* 85' },
-            { type: 'mrkdwn', text: '*Priority:* High' }
+                {
+                  type: 'mrkdwn',
+                  text: `*From:* John Doe <john.doe@example.com>`
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Subject:* Test Email - Interested in Your Product`
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Timestamp:* ${new Date().toLocaleString()}`
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Account:* test-account`
+                }
+              ]
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*Snippet:* This is a test email to verify that integrations are working correctly...`
+              }
+            },
+            {
+              type: 'divider'
+            },
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: `📧 Email ID: \`${testEmailData.id}\` | 🤖 AI Category: \`Interested\``
+                }
+              ]
+            }
           ]
+        });
+        
+        if (result.ok) {
+          console.log('✅ Slack Bot API notification sent successfully');
+        } else {
+          console.error('❌ Slack API error:', result.error);
         }
-      ]
-    };
+      } catch (error) {
+        console.error('❌ Error sending Slack notification:', error);
+      }
+    } else {
+      console.log('⚠️ Slack Bot API not configured (SLACK_BOT_TOKEN or SLACK_CHANNEL_ID missing)');
+    }
+    
+    // Test Webhook integration
+    if (process.env.WEBHOOK_URL) {
+      try {
+        const axios = require('axios');
+        
+        const webhookPayload = {
+          event: 'email_interested',
+          email: {
+            from: 'john.doe@example.com',
+            from_name: 'John Doe',
+            subject: 'Test Email - Interested in Your Product',
+            snippet: 'This is a test email to verify that integrations are working correctly...',
+            received_at: new Date().toISOString(),
+            email_id: testEmailData.id,
+            account_id: 'test-account',
+            ai_category: 'Interested'
+          }
+        };
+        
+        const response = await axios.post(process.env.WEBHOOK_URL, webhookPayload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ReachInbox-Onebox/1.0'
+          },
+          timeout: 10000
+        });
+        
+        if (response.status >= 200 && response.status < 300) {
+          console.log('✅ Webhook triggered successfully');
+        } else {
+          console.error('❌ Webhook returned status:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Error triggering webhook:', error);
+      }
+    } else {
+      console.log('⚠️ Webhook not configured (WEBHOOK_URL missing)');
+    }
     
     // Broadcast integration test
     broadcast({
       type: 'integration_test',
-      slack: slackPayload,
-      timestamp: new Date().toISOString()
+      message: 'Integration test completed',
+      timestamp: new Date().toISOString(),
+      testEmailData: testEmailData
     });
     
     res.json({ 
-      message: 'Integration test completed successfully',
-      slack: slackPayload,
-      timestamp: new Date().toISOString()
+      success: true, 
+      message: 'Integration test completed',
+      timestamp: new Date().toISOString(),
+      slackConfigured: !!(process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL_ID),
+      webhookConfigured: !!process.env.WEBHOOK_URL
     });
+    
   } catch (error) {
-    console.error('Test integrations error:', error);
+    console.error('❌ Integration test error:', error);
     res.status(500).json({ 
-      error: 'Integration test failed', 
-      message: error.message || 'Unknown error' 
+      success: false, 
+      error: error.message 
     });
   }
 });
@@ -1139,6 +1575,25 @@ app.listen(PORT, () => {
   console.log(`   ✅ Priority & sentiment analysis`);
   console.log(`   ✅ Lead scoring system`);
   console.log(`   ✅ Mobile responsive design`);
+  
+  // Auto-fetch emails on startup
+  if (gmailAccounts.length > 0) {
+    console.log('🔄 Auto-fetching emails on startup...');
+    (async () => {
+      for (const account of gmailAccounts) {
+        try {
+          console.log(`📧 Fetching emails for ${account.email}...`);
+          const emails = await fetchGmailEmails(account);
+          console.log(`📊 Debug: Fetched ${emails.length} emails, adding to gmailEmails array...`);
+          gmailEmails.push(...emails);
+          console.log(`✅ Fetched ${emails.length} emails from ${account.email}`);
+          console.log(`📊 Debug: Total emails in gmailEmails array: ${gmailEmails.length}`);
+        } catch (error) {
+          console.error(`❌ Error fetching emails for ${account.email}:`, error.message);
+        }
+      }
+    })();
+  }
 });
 
 // Handle graceful shutdown

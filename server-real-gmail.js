@@ -19,6 +19,20 @@ const GROK_EMBEDDINGS_URL = process.env.LLM_EMBEDDINGS_URL || 'https://api.groq.
 // Gmail IMAP Configuration - will be set when user adds account
 let GMAIL_CONFIG = null;
 
+// Auto-configure Gmail from environment variables if available
+if (process.env.IMAP_ACCOUNT_1_USER && process.env.IMAP_ACCOUNT_1_PASS) {
+  console.log('🔧 Auto-configuring Gmail from environment variables...');
+  GMAIL_CONFIG = {
+    user: process.env.IMAP_ACCOUNT_1_USER,
+    password: process.env.IMAP_ACCOUNT_1_PASS,
+    host: process.env.IMAP_ACCOUNT_1_HOST || 'imap.gmail.com',
+    port: parseInt(process.env.IMAP_ACCOUNT_1_PORT) || 993,
+    tls: process.env.IMAP_ACCOUNT_1_TLS === 'true',
+    tlsOptions: { rejectUnauthorized: false }
+  };
+  console.log(`📧 Gmail configured for: ${GMAIL_CONFIG.user}`);
+}
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
@@ -213,8 +227,26 @@ function connectToGmail() {
       }
       console.log(`📧 INBOX opened. Total messages: ${box.messages.total}`);
 
-      // Fetch recent emails (last 20)
-      const fetch = imapConnection.seq.fetch('1:20', { bodies: '' });
+      // Search for emails from the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      imapConnection.search(['SINCE', thirtyDaysAgo], (err, results) => {
+        if (err) {
+          console.error('Error searching emails:', err);
+          return;
+        }
+        
+        if (!results || results.length === 0) {
+          console.log('📧 No recent emails found in the last 30 days');
+          return;
+        }
+        
+        console.log(`📧 Found ${results.length} recent emails from the last 30 days`);
+        
+        // Fetch the most recent emails (limit to last 50)
+        const recentResults = results.slice(-50);
+        const fetch = imapConnection.fetch(recentResults, { bodies: '' });
       
       fetch.on('message', (msg) => {
         let raw = '';
@@ -276,16 +308,17 @@ function connectToGmail() {
         });
       });
 
-      fetch.once('end', () => {
-        console.log('📧 Finished fetching emails from Gmail');
-        
-        // Start IDLE for real-time updates
-        try {
-          imapConnection.idle();
-          console.log('🔄 IMAP IDLE started - waiting for new emails...');
-        } catch (error) {
-          console.log('⚠️ IDLE not supported, using polling instead');
-        }
+        fetch.once('end', () => {
+          console.log('📧 Finished fetching emails from Gmail');
+          
+          // Start IDLE for real-time updates
+          try {
+            imapConnection.idle();
+            console.log('🔄 IMAP IDLE started - waiting for new emails...');
+          } catch (error) {
+            console.log('⚠️ IDLE not supported, using polling instead');
+          }
+        });
       });
     });
   });
@@ -1059,7 +1092,13 @@ app.listen(PORT, () => {
   console.log(`   ✅ Priority & sentiment analysis`);
   console.log(`   ✅ Lead scoring system`);
   console.log(`   ✅ Mobile responsive design`);
-  console.log(`\n📧 Gmail Integration: Add your Gmail account via API to start fetching emails`);
+  // Auto-connect to Gmail if configured
+  if (GMAIL_CONFIG) {
+    console.log(`\n📧 Auto-connecting to Gmail: ${GMAIL_CONFIG.user}`);
+    connectToGmail();
+  } else {
+    console.log(`\n📧 Gmail Integration: Add your Gmail account via API to start fetching emails`);
+  }
 });
 
 // Handle graceful shutdown
