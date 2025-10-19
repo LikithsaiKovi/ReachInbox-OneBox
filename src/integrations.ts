@@ -17,14 +17,9 @@ export async function triggerIntegrations(emailData: EmailData): Promise<void> {
   
   const promises = [];
   
-  // Trigger Slack webhook
+  // Trigger Slack webhook (optional)
   if (process.env.SLACK_WEBHOOK_URL) {
     promises.push(triggerSlackWebhook(emailData));
-  }
-  
-  // Trigger generic webhook
-  if (process.env.WEBHOOK_SITE_URL) {
-    promises.push(triggerGenericWebhook(emailData));
   }
   
   // Execute all integrations in parallel
@@ -118,52 +113,6 @@ async function triggerSlackWebhook(emailData: EmailData): Promise<void> {
   }
 }
 
-async function triggerGenericWebhook(emailData: EmailData): Promise<void> {
-  try {
-    const webhookUrl = process.env.WEBHOOK_SITE_URL;
-    if (!webhookUrl) {
-      console.log('No generic webhook URL configured');
-      return;
-    }
-
-    const webhookPayload = {
-      event: 'InterestedLead',
-      timestamp: new Date().toISOString(),
-      data: {
-        emailId: emailData.id,
-        accountId: emailData.accountId,
-        subject: emailData.subject,
-        from: emailData.from,
-        to: emailData.to,
-        date: emailData.date.toISOString(),
-        category: emailData.aiCategory,
-        preview: emailData.body.substring(0, 500),
-        metadata: {
-          source: 'reachinbox-onebox',
-          version: '1.0.0'
-        }
-      }
-    };
-
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'ReachInbox-Onebox/1.0'
-      },
-      body: JSON.stringify(webhookPayload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Generic webhook failed: ${response.status} ${response.statusText}`);
-    }
-
-    console.log('Generic webhook triggered successfully');
-  } catch (error) {
-    console.error('Error triggering generic webhook:', error);
-    throw error;
-  }
-}
 
 export async function testIntegrations(): Promise<void> {
   const testEmailData: EmailData = {

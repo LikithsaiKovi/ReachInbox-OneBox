@@ -54,8 +54,8 @@ IMAP_ACCOUNT_1_PASS=your-app-password
 IMAP_ACCOUNT_1_HOST=imap.gmail.com
 
 # Integrations
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-WEBHOOK_SITE_URL=https://webhook.site/your-id
+# Optional: Slack notifications (uncomment to enable)
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
 
 ## Testing Checklist
@@ -77,8 +77,7 @@ WEBHOOK_SITE_URL=https://webhook.site/your-id
 - [ ] Reply suggestions generating
 
 ### 4. Integrations
-- [ ] Slack webhook configured
-- [ ] Webhook.site receiving payloads
+- [ ] Optional: Slack webhook configured (for notifications)
 - [ ] "Interested" emails triggering notifications
 
 ### 5. Frontend

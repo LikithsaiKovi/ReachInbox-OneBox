@@ -23,7 +23,7 @@
 ### 2:30-3:30 - Integration Triggers
 - Send email with "interested" keywords
 - Show Slack notification appearing
-- Check webhook.site for payload
+- Check optional Slack notifications
 - Demonstrate real-time lead detection
 
 ### 3:30-4:30 - RAG Reply Suggestions
@@ -172,7 +172,7 @@
 ### Demo Environment
 - Use test email accounts only
 - Use app passwords, not main passwords
-- Use webhook.site for testing webhooks
+- Use optional Slack for notifications
 - Don't expose sensitive data in demos
 
 ### Production Considerations

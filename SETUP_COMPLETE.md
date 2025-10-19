@@ -82,8 +82,8 @@ IMAP_ACCOUNT_1_PORT=993
 IMAP_ACCOUNT_1_TLS=true
 
 # Optional: Integration Webhooks
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
-WEBHOOK_SITE_URL=https://webhook.site/YOUR-UNIQUE-ID
+# Optional: Slack notifications (uncomment to enable)
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
 ```
 
 **⚠️ IMPORTANT:**

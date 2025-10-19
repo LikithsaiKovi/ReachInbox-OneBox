@@ -3,6 +3,9 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const WebSocket = require('ws');
+const Imap = require('imap');
+const { simpleParser } = require('mailparser');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 
 const app = express();
@@ -61,6 +64,7 @@ app.get('/health', (req, res) => {
 
 // Gmail account management
 let gmailAccounts = [];
+let gmailEmails = [];
 
 // Get all Gmail accounts
 app.get('/api/gmail-accounts', (req, res) => {
@@ -156,28 +160,218 @@ app.delete('/api/gmail-accounts/:id', (req, res) => {
   res.json({ success: true, message: 'Gmail account removed successfully' });
 });
 
+// Fetch emails from Gmail account
+async function fetchGmailEmails(account) {
+  return new Promise((resolve, reject) => {
+    const imap = new Imap({
+      user: account.email,
+      password: account.appPassword,
+      host: 'imap.gmail.com',
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    });
+
+    const emails = [];
+
+    imap.once('ready', () => {
+      // Open INBOX
+      imap.openBox('INBOX', false, (err, box) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Search for recent emails
+        imap.search(['UNSEEN', ['SINCE', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)]], (err, results) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          if (!results || results.length === 0) {
+            imap.end();
+            resolve(emails);
+            return;
+          }
+
+          const fetch = imap.fetch(results, { bodies: '' });
+          let processedCount = 0;
+
+          fetch.on('message', (msg, seqno) => {
+            let buffer = '';
+            
+            msg.on('body', (stream) => {
+              stream.on('data', (chunk) => {
+                buffer += chunk.toString('utf8');
+              });
+            });
+
+            msg.once('end', () => {
+              simpleParser(buffer, (err, parsed) => {
+                if (err) {
+                  console.error('Parse error:', err);
+                  processedCount++;
+                  if (processedCount === results.length) {
+                    imap.end();
+                    resolve(emails);
+                  }
+                  return;
+                }
+
+                // Analyze email content for AI categorization
+                const analysis = performEmailAnalysis(parsed);
+
+                const emailData = {
+                  _id: `gmail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  _source: {
+                    id: `gmail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    subject: parsed.subject || 'No Subject',
+                    from: parsed.from?.text || parsed.from?.value?.[0]?.address || 'Unknown',
+                    to: parsed.to?.text || parsed.to?.value?.[0]?.address || account.email,
+                    body: parsed.text || parsed.html || 'No content',
+                    date: parsed.date?.toISOString() || new Date().toISOString(),
+                    aiCategory: analysis.category,
+                    accountId: account.id,
+                    folder: 'INBOX',
+                    priority: analysis.priority,
+                    sentiment: analysis.sentiment,
+                    leadScore: analysis.leadScore,
+                    responseTime: '2 hours',
+                    attachments: parsed.attachments?.map(att => att.filename) || [],
+                    threadId: `thread_${Math.random().toString(36).substr(2, 9)}`
+                  }
+                };
+
+                emails.push(emailData);
+                processedCount++;
+
+                if (processedCount === results.length) {
+                  imap.end();
+                  resolve(emails);
+                }
+              });
+            });
+          });
+
+          fetch.once('error', (err) => {
+            reject(err);
+          });
+
+          fetch.once('end', () => {
+            if (processedCount === 0) {
+              imap.end();
+              resolve(emails);
+            }
+          });
+        });
+      });
+    });
+
+    imap.once('error', (err) => {
+      reject(err);
+    });
+
+    imap.connect();
+  });
+}
+
+// AI-powered email analysis
+function performEmailAnalysis(parsedEmail) {
+  const subject = (parsedEmail.subject || '').toLowerCase();
+  const body = (parsedEmail.text || parsedEmail.html || '').toLowerCase();
+  const from = (parsedEmail.from?.text || '').toLowerCase();
+  
+  let category = 'Uncategorized';
+  let priority = 'medium';
+  let sentiment = 'neutral';
+  let leadScore = 50;
+
+  // Category analysis
+  if (subject.includes('interested') || subject.includes('demo') || subject.includes('pricing') || 
+      body.includes('interested') || body.includes('demo') || body.includes('pricing')) {
+    category = 'Interested';
+    priority = 'high';
+    sentiment = 'positive';
+    leadScore = 85;
+  } else if (subject.includes('meeting') || subject.includes('call') || subject.includes('schedule')) {
+    category = 'Meeting';
+    priority = 'high';
+    sentiment = 'positive';
+    leadScore = 80;
+  } else if (subject.includes('urgent') || subject.includes('asap') || subject.includes('immediately')) {
+    category = 'Urgent';
+    priority = 'urgent';
+    sentiment = 'neutral';
+    leadScore = 90;
+  } else if (subject.includes('complaint') || subject.includes('issue') || subject.includes('problem')) {
+    category = 'Complaint';
+    priority = 'high';
+    sentiment = 'negative';
+    leadScore = 70;
+  } else if (subject.includes('newsletter') || subject.includes('unsubscribe')) {
+    category = 'Newsletter';
+    priority = 'low';
+    sentiment = 'neutral';
+    leadScore = 20;
+  } else if (subject.includes('invoice') || subject.includes('payment') || subject.includes('billing')) {
+    category = 'Billing';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 40;
+  }
+
+  // Sentiment analysis
+  const positiveWords = ['great', 'excellent', 'amazing', 'love', 'perfect', 'wonderful', 'fantastic'];
+  const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'disappointed', 'angry', 'frustrated'];
+  
+  const positiveCount = positiveWords.filter(word => body.includes(word)).length;
+  const negativeCount = negativeWords.filter(word => body.includes(word)).length;
+  
+  if (positiveCount > negativeCount) {
+    sentiment = 'positive';
+    leadScore = Math.min(100, leadScore + 10);
+  } else if (negativeCount > positiveCount) {
+    sentiment = 'negative';
+    leadScore = Math.max(0, leadScore - 10);
+  }
+
+  return { category, priority, sentiment, leadScore };
+}
+
+// Fetch emails from Gmail account endpoint
+app.post('/api/gmail-accounts/:id/fetch-emails', async (req, res) => {
+  try {
+    const accountId = req.params.id;
+    const account = gmailAccounts.find(acc => acc.id === accountId);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'Gmail account not found' });
+    }
+
+    console.log(`📧 Fetching emails for ${account.email}...`);
+    const emails = await fetchGmailEmails(account);
+    
+    // Add to Gmail emails store
+    gmailEmails.push(...emails);
+    
+    console.log(`✅ Fetched ${emails.length} emails from ${account.email}`);
+    
+    res.json({
+      success: true,
+      message: `Fetched ${emails.length} emails successfully`,
+      emails: emails.length
+    });
+    
+  } catch (error) {
+    console.error('Gmail fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch Gmail emails: ' + error.message });
+  }
+});
+
 // Get configured IMAP accounts
 app.get('/api/accounts', (req, res) => {
-  const defaultAccounts = [
-    {
-      id: 'account_1',
-      email: 'demo@example.com',
-      host: 'imap.gmail.com',
-      status: 'connected',
-      lastSync: new Date().toISOString(),
-      type: 'demo'
-    },
-    {
-      id: 'account_2',
-      email: 'test@company.com',
-      host: 'imap.gmail.com',
-      status: 'connected',
-      lastSync: new Date().toISOString(),
-      type: 'demo'
-    }
-  ];
-  
-  // Add Gmail accounts to the list
+  // Only return Gmail accounts, no demo accounts
   const gmailAccountsList = gmailAccounts.map(account => ({
     id: account.id,
     email: account.email,
@@ -189,8 +383,7 @@ app.get('/api/accounts', (req, res) => {
     isGmail: true
   }));
   
-  const allAccounts = [...defaultAccounts, ...gmailAccountsList];
-  res.json(allAccounts);
+  res.json(gmailAccountsList);
 });
 
 // Fetch emails from Gmail account
@@ -442,8 +635,8 @@ app.get('/api/emails/search', async (req, res) => {
       dateTo
     } = req.query;
     
-    // Filter emails based on search criteria
-    let filteredEmails = [...mockEmails];
+    // Filter emails based on search criteria - only real Gmail emails
+    let filteredEmails = [...gmailEmails];
     
     if (q) {
       const searchQuery = String(q).toLowerCase();
@@ -573,11 +766,25 @@ app.get('/api/emails/export', async (req, res) => {
   try {
     const { format = 'csv', category, dateFrom, dateTo } = req.query;
     
-    let filteredEmails = mockEmails;
+    let filteredEmails = [...gmailEmails];
     
     if (category) {
       filteredEmails = filteredEmails.filter(email => 
         email._source.aiCategory === category
+      );
+    }
+    
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filteredEmails = filteredEmails.filter(email => 
+        new Date(email._source.date) >= fromDate
+      );
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      filteredEmails = filteredEmails.filter(email => 
+        new Date(email._source.date) <= toDate
       );
     }
     
@@ -697,29 +904,103 @@ app.post('/api/emails/:id/suggest-reply', async (req, res) => {
   }
 });
 
+// Send real reply to email
+app.post('/api/emails/:id/reply', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { replyText, to, subject } = req.body;
+
+    // Find the original email (check both mock and Gmail emails)
+    let originalEmail = mockEmails.find(e => e._id === id);
+    if (!originalEmail) {
+      originalEmail = gmailEmails.find(e => e._id === id);
+    }
+
+    if (!originalEmail) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    // Find the Gmail account to send from
+    const account = gmailAccounts.find(acc => acc.id === originalEmail._source.accountId);
+    if (!account) {
+      return res.status(404).json({ error: 'Gmail account not found' });
+    }
+
+    // Create SMTP transporter
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: account.email,
+        pass: account.appPassword
+      }
+    });
+
+    // Prepare email data
+    const mailOptions = {
+      from: account.email,
+      to: to || originalEmail._source.from,
+      subject: subject || `Re: ${originalEmail._source.subject}`,
+      text: replyText,
+      html: `<p>${replyText.replace(/\n/g, '<br>')}</p>`
+    };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('📧 Reply sent successfully:', {
+      messageId: info.messageId,
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    });
+
+    // Broadcast real-time update
+    broadcast({
+      type: 'reply_sent',
+      emailId: id,
+      replyId: info.messageId,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: 'Reply sent successfully',
+      replyId: info.messageId,
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    });
+
+  } catch (error) {
+    console.error('Send reply error:', error);
+    res.status(500).json({ 
+      error: 'Failed to send reply', 
+      message: error.message || 'Unknown error' 
+    });
+  }
+});
+
 // Advanced email statistics
 app.get('/api/stats', async (req, res) => {
   try {
-    const mockStats = {
-      totalEmails: mockEmails.length,
-      byCategory: getCategoryStats(mockEmails),
-      byPriority: getPriorityStats(mockEmails),
-      bySentiment: getSentimentStats(mockEmails),
-      byAccount: [
-        { key: 'account_1', doc_count: 4 },
-        { key: 'account_2', doc_count: 2 }
-      ],
+    const gmailStats = {
+      totalEmails: gmailEmails.length,
+      byCategory: getCategoryStats(gmailEmails),
+      byPriority: getPriorityStats(gmailEmails),
+      bySentiment: getSentimentStats(gmailEmails),
+      byAccount: gmailAccounts.map(acc => ({
+        key: acc.id,
+        doc_count: gmailEmails.filter(e => e._source.accountId === acc.id).length
+      })),
       analytics: {
-        avgLeadScore: getAverageLeadScore(mockEmails),
+        avgLeadScore: getAverageLeadScore(gmailEmails),
         avgResponseTime: '1.5 hours',
         conversionRate: '33%',
         topPerformingCategory: 'Interested',
-        urgentEmails: mockEmails.filter(e => e._source.priority === 'urgent').length,
-        highPriorityEmails: mockEmails.filter(e => e._source.priority === 'high').length
+        urgentEmails: gmailEmails.filter(e => e._source.priority === 'urgent').length,
+        highPriorityEmails: gmailEmails.filter(e => e._source.priority === 'high').length
       }
     };
     
-    res.json(mockStats);
+    res.json(gmailStats);
   } catch (error) {
     console.error('Stats error:', error);
     res.status(500).json({ 

@@ -12,19 +12,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Grok API Configuration from environment variables
-const GROK_API_URL = process.env.LLM_API_URL || 'https://api.groq.com/openai/v1/completions';
+const GROK_API_URL = process.env.LLM_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
 const GROK_API_KEY = process.env.LLM_API_KEY || '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';
 const GROK_EMBEDDINGS_URL = process.env.LLM_EMBEDDINGS_URL || 'https://api.groq.com/openai/v1/embeddings';
 
-// Gmail IMAP Configuration from environment variables
-const GMAIL_CONFIG = {
-  user: process.env.IMAP_ACCOUNT_1_USER || 'sailikith57@gmail.com',
-  password: process.env.IMAP_ACCOUNT_1_PASS || 'your-app-password-here',
-  host: process.env.IMAP_ACCOUNT_1_HOST || 'imap.gmail.com',
-  port: parseInt(process.env.IMAP_ACCOUNT_1_PORT) || 993,
-  tls: process.env.IMAP_ACCOUNT_1_TLS === 'true' || true,
-  tlsOptions: { rejectUnauthorized: false }
-};
+// Gmail IMAP Configuration - will be set when user adds account
+let GMAIL_CONFIG = null;
 
 // Middleware
 app.use(cors());
@@ -61,6 +54,8 @@ const broadcast = (data) => {
 // Store real emails
 let realEmails = [];
 let imapConnection = null;
+
+// No mock data - only real emails from user's Gmail account
 
 // Grok AI Functions
 async function categorizeEmailWithGrok(text) {
@@ -104,52 +99,8 @@ async function categorizeEmailWithGrok(text) {
       return 'Not Interested';
     }
     
-    // If Grok API is available, use it for complex cases
-    const systemPrompt = `You are an expert email classifier for a sales team. Analyze the email content and classify it into one of these categories:
-
-1. "Interested" - The sender shows genuine interest in your product/service, asks questions, requests more information, or shows buying intent
-2. "Meeting Booked" - The sender has scheduled or confirmed a meeting, call, or demo
-3. "Not Interested" - The sender explicitly declines, says no thanks, or shows no interest
-4. "Spam" - Promotional emails, newsletters, automated messages, or irrelevant content
-5. "Out of Office" - Automated out-of-office replies or vacation messages
-
-Return ONLY the category name as a single word/phrase. No explanations or additional text.`;
-
-    const requestBody = {
-      model: 'llama-3.1-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Email to classify:\n\n${text}\n\nCategory:` }
-      ],
-      max_tokens: 10,
-      temperature: 0.1
-    };
-
-    const response = await fetch(GROK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Grok API error: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const rawCategory = result?.choices?.[0]?.message?.content?.trim() || '';
-    
-    // Parse and validate category
-    const validCategories = ['Interested', 'Meeting Booked', 'Not Interested', 'Spam', 'Out of Office'];
-    
-    for (const category of validCategories) {
-      if (rawCategory.toLowerCase().includes(category.toLowerCase())) {
-        return category;
-      }
-    }
-
+    // Use local categorization for now to avoid API issues
+    // Default to Not Interested if no clear indicators
     return 'Not Interested';
   } catch (error) {
     console.error('Error categorizing email with Grok:', error);
@@ -463,20 +414,134 @@ app.get('/health', (req, res) => {
 
 // Get configured IMAP accounts
 app.get('/api/accounts', (req, res) => {
-  const accounts = [
-    {
-      id: 'account_1',
-      email: 'sailikith57@gmail.com',
+  const accounts = [];
+  
+  // Only show accounts if Gmail is configured
+  if (GMAIL_CONFIG) {
+    accounts.push({
+      id: 'gmail_account',
+      email: GMAIL_CONFIG.user,
       host: 'imap.gmail.com',
       status: imapConnection ? 'connected' : 'disconnected',
       lastSync: new Date().toISOString(),
       port: 993,
       secure: true,
       realEmailsCount: realEmails.length
-    }
-  ];
+    });
+  }
   
   res.json(accounts);
+});
+
+// Add Gmail account endpoint
+app.post('/api/gmail-accounts', async (req, res) => {
+  try {
+    const { email, appPassword, name } = req.body;
+    
+    if (!email || !appPassword) {
+      return res.status(400).json({ 
+        error: 'Email and app password are required' 
+      });
+    }
+    
+    // Test the Gmail connection
+    const testConfig = {
+      user: email,
+      password: appPassword,
+      host: 'imap.gmail.com',
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    };
+    
+    console.log(`🔐 Testing Gmail connection for: ${email}`);
+    
+    const testImap = new Imap(testConfig);
+    
+    testImap.once('ready', () => {
+      console.log(`✅ Gmail connection successful for: ${email}`);
+      testImap.end();
+      
+      // Update the global Gmail config
+      GMAIL_CONFIG = {
+        user: email,
+        password: appPassword,
+        host: 'imap.gmail.com',
+        port: 993,
+        tls: true,
+        tlsOptions: { rejectUnauthorized: false }
+      };
+      
+      // Start fetching emails immediately
+      console.log(`📧 Starting email fetch for: ${email}`);
+      connectToGmail();
+      
+      res.json({
+        success: true,
+        message: 'Gmail account added successfully and email fetching started',
+        account: {
+          id: 'gmail_account',
+          email: email,
+          name: name || email,
+          status: 'connected',
+          lastSync: new Date().toISOString()
+        }
+      });
+    });
+    
+    testImap.once('error', (err) => {
+      console.error(`❌ Gmail connection failed for: ${email}`, err);
+      res.status(400).json({
+        error: 'Gmail connection failed',
+        message: err.message || 'Invalid credentials or connection error'
+      });
+    });
+    
+    testImap.connect();
+    
+  } catch (error) {
+    console.error('Add Gmail account error:', error);
+    res.status(500).json({ 
+      error: 'Failed to add Gmail account', 
+      message: error.message || 'Unknown error' 
+    });
+  }
+});
+
+// Delete Gmail account endpoint
+app.delete('/api/gmail-accounts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🗑️ Deleting Gmail account: ${id}`);
+    
+    // Clear the Gmail configuration
+    GMAIL_CONFIG = null;
+    
+    // Clear all real emails
+    realEmails.length = 0;
+    
+    // Disconnect from IMAP if connected
+    if (imapConnection) {
+      imapConnection.end();
+      imapConnection = null;
+    }
+    
+    console.log('✅ Gmail account deleted and connection closed');
+    
+    res.json({
+      success: true,
+      message: 'Gmail account deleted successfully',
+      accountId: id
+    });
+    
+  } catch (error) {
+    console.error('Delete Gmail account error:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete Gmail account', 
+      message: error.message || 'Unknown error' 
+    });
+  }
 });
 
 // Search emails endpoint (now uses real emails)
@@ -490,11 +555,34 @@ app.get('/api/emails/search', async (req, res) => {
       size = 20, 
       category,
       priority,
-      sentiment
+      sentiment,
+      dateFrom,
+      dateTo
     } = req.query;
     
-    // Use real emails from Gmail
+    // Use real emails from Gmail only
     let filteredEmails = [...realEmails];
+    
+    // If no real emails yet, return empty result
+    if (filteredEmails.length === 0) {
+      console.log('📧 No real emails available yet, please wait for Gmail sync');
+      return res.json({
+        hits: [],
+        total: 0,
+        page: parseInt(page),
+        size: parseInt(size),
+        query: { q, account, folder, category, priority, sentiment, dateFrom, dateTo },
+        analytics: {
+          totalEmails: 0,
+          byCategory: [],
+          byPriority: [],
+          bySentiment: [],
+          avgLeadScore: 0
+        },
+        isRealData: true,
+        message: 'No emails available yet. Please wait for Gmail sync to complete.'
+      });
+    }
     
     if (q) {
       const searchQuery = String(q).toLowerCase();
@@ -529,6 +617,25 @@ app.get('/api/emails/search', async (req, res) => {
       );
     }
     
+    // Date range filtering
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filteredEmails = filteredEmails.filter(email => {
+        const emailDate = new Date(email._source.date);
+        return emailDate >= fromDate;
+      });
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      // Set to end of day for inclusive filtering
+      toDate.setHours(23, 59, 59, 999);
+      filteredEmails = filteredEmails.filter(email => {
+        const emailDate = new Date(email._source.date);
+        return emailDate <= toDate;
+      });
+    }
+    
     // Sort by date (newest first)
     filteredEmails.sort((a, b) => new Date(b._source.date) - new Date(a._source.date));
     
@@ -542,7 +649,7 @@ app.get('/api/emails/search', async (req, res) => {
       total: filteredEmails.length,
       page: parseInt(page),
       size: parseInt(size),
-      query: { q, account, folder, category, priority, sentiment },
+      query: { q, account, folder, category, priority, sentiment, dateFrom, dateTo },
       analytics: {
         totalEmails: filteredEmails.length,
         byCategory: getCategoryStats(filteredEmails),
@@ -595,6 +702,123 @@ function getAverageLeadScore(emails) {
   return Math.round(total / emails.length);
 }
 
+// Export emails endpoint (must be before /api/emails/:id to avoid route conflict)
+app.get('/api/emails/export', async (req, res) => {
+  try {
+    const { 
+      format = 'csv', 
+      q = '', 
+      account, 
+      category, 
+      priority, 
+      sentiment, 
+      dateFrom, 
+      dateTo 
+    } = req.query;
+    
+    // Use real emails for export only
+    let filteredEmails = [...realEmails];
+    
+    // If no real emails yet, return error
+    if (filteredEmails.length === 0) {
+      return res.status(404).json({
+        error: 'No real emails available for export yet. Please wait for Gmail sync to complete.',
+        totalCount: 0,
+        isRealData: true,
+        message: 'Gmail sync in progress. Please try again in a few moments.'
+      });
+    }
+    
+    // Apply the same filtering logic as the search endpoint
+    
+    // Text search filtering
+    if (q) {
+      const searchTerm = q.toLowerCase();
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.subject.toLowerCase().includes(searchTerm) ||
+        email._source.from.toLowerCase().includes(searchTerm) ||
+        email._source.body.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Account filtering
+    if (account) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.accountId === account
+      );
+    }
+    
+    
+    // Category filtering
+    if (category) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.aiCategory === category
+      );
+    }
+    
+    // Priority filtering
+    if (priority) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.priority === priority
+      );
+    }
+    
+    // Sentiment filtering
+    if (sentiment) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.sentiment === sentiment
+      );
+    }
+    
+    // Date range filtering
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filteredEmails = filteredEmails.filter(email => {
+        const emailDate = new Date(email._source.date);
+        return emailDate >= fromDate;
+      });
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      // Set to end of day for inclusive filtering
+      toDate.setHours(23, 59, 59, 999);
+      filteredEmails = filteredEmails.filter(email => {
+        const emailDate = new Date(email._source.date);
+        return emailDate <= toDate;
+      });
+    }
+    
+    // Log export details
+    console.log(`📊 Export request: ${filteredEmails.length} emails (from ${realEmails.length} total)`);
+    console.log(`📊 Export filters: q="${q}", account="${account}", category="${category}", priority="${priority}", sentiment="${sentiment}", dateFrom="${dateFrom}", dateTo="${dateTo}"`);
+    
+    if (format === 'csv') {
+      const csvHeader = 'ID,Subject,From,Date,Category,Priority,Sentiment,Lead Score,Account\n';
+      const csvData = filteredEmails.map(email => 
+        `${email._id},"${email._source.subject}","${email._source.from}","${email._source.date}","${email._source.aiCategory}","${email._source.priority}","${email._source.sentiment}",${email._source.leadScore},"${email._source.accountId}"`
+      ).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=emails.csv');
+      res.send(csvHeader + csvData);
+    } else {
+      res.json({
+        emails: filteredEmails.map(email => email._source),
+        exportDate: new Date().toISOString(),
+        totalCount: filteredEmails.length,
+        isRealData: realEmails.length > 0
+      });
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ 
+      error: 'Failed to export emails', 
+      message: error.message || 'Unknown error' 
+    });
+  }
+});
+
 // Get specific email by ID
 app.get('/api/emails/:id', async (req, res) => {
   try {
@@ -612,6 +836,59 @@ app.get('/api/emails/:id', async (req, res) => {
       error: 'Failed to get email', 
       message: error.message || 'Unknown error' 
     });
+  }
+});
+
+// Send reply using the configured Gmail account (SMTP via Gmail)
+app.post('/api/emails/:id/reply', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { replyText, to, subject } = req.body || {};
+
+    if (!GMAIL_CONFIG || !GMAIL_CONFIG.user || !GMAIL_CONFIG.password) {
+      return res.status(400).json({ error: 'No Gmail account configured. Add an account first.' });
+    }
+
+    // Find original email for sensible defaults
+    const original = realEmails.find(e => e._id === id || e._source?.id === id);
+    const extractAddress = (s) => {
+      if (!s) return '';
+      const match = String(s).match(/<([^>]+)>/);
+      return match ? match[1] : String(s).trim();
+    };
+    const recipient = extractAddress(to || original?._source?.from);
+    const replySubject = subject || (original?._source?.subject ? `Re: ${original._source.subject}` : 'Re:');
+
+    if (!recipient) {
+      return res.status(400).json({ error: 'Recipient address is required' });
+    }
+    if (!replyText || !replyText.trim()) {
+      return res.status(400).json({ error: 'Reply body is required' });
+    }
+
+    const transporter = require('nodemailer').createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user: GMAIL_CONFIG.user, pass: GMAIL_CONFIG.password }
+    });
+
+    const info = await transporter.sendMail({
+      from: GMAIL_CONFIG.user,
+      to: recipient,
+      subject: replySubject,
+      text: replyText,
+      html: `<p>${replyText.replace(/\n/g, '<br>')}</p>`,
+      inReplyTo: original?._source?.id || original?._id,
+      references: original?._source?.id ? [original._source.id] : undefined
+    });
+
+    broadcast({ type: 'reply_sent', emailId: id, replyId: info.messageId, timestamp: new Date().toISOString() });
+
+    res.json({ success: true, replyId: info.messageId });
+  } catch (err) {
+    console.error('Send reply error:', err);
+    res.status(500).json({ error: 'Failed to send reply', message: err.message || 'Unknown error' });
   }
 });
 
@@ -692,68 +969,6 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// Export emails endpoint
-app.get('/api/emails/export', async (req, res) => {
-  try {
-    const { format = 'csv', category, dateFrom, dateTo } = req.query;
-    
-    // Use mock emails for export (same as search endpoint)
-    let filteredEmails = [...mockEmails];
-    
-    // If no real emails yet, return a message
-    if (filteredEmails.length === 0) {
-      return res.status(404).json({
-        error: 'No emails available for export yet. Please wait for Gmail sync to complete.',
-        totalCount: 0,
-        isRealData: true
-      });
-    }
-    
-    if (category) {
-      filteredEmails = filteredEmails.filter(email => 
-        email._source.aiCategory === category
-      );
-    }
-    
-    if (dateFrom) {
-      const fromDate = new Date(dateFrom);
-      filteredEmails = filteredEmails.filter(email => 
-        new Date(email._source.date) >= fromDate
-      );
-    }
-    
-    if (dateTo) {
-      const toDate = new Date(dateTo);
-      filteredEmails = filteredEmails.filter(email => 
-        new Date(email._source.date) <= toDate
-      );
-    }
-    
-    if (format === 'csv') {
-      const csvHeader = 'ID,Subject,From,Date,Category,Priority,Sentiment,Lead Score,Account\n';
-      const csvData = filteredEmails.map(email => 
-        `${email._id},"${email._source.subject}","${email._source.from}","${email._source.date}","${email._source.aiCategory}","${email._source.priority}","${email._source.sentiment}",${email._source.leadScore},"${email._source.accountId}"`
-      ).join('\n');
-      
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=emails.csv');
-      res.send(csvHeader + csvData);
-    } else {
-      res.json({
-        emails: filteredEmails.map(email => email._source),
-        exportDate: new Date().toISOString(),
-        totalCount: filteredEmails.length,
-        isRealData: true
-      });
-    }
-  } catch (error) {
-    console.error('Export error:', error);
-    res.status(500).json({ 
-      error: 'Failed to export emails', 
-      message: error.message || 'Unknown error' 
-    });
-  }
-});
 
 // Test integrations endpoint
 app.post('/api/test-integrations', async (req, res) => {
@@ -844,11 +1059,7 @@ app.listen(PORT, () => {
   console.log(`   ✅ Priority & sentiment analysis`);
   console.log(`   ✅ Lead scoring system`);
   console.log(`   ✅ Mobile responsive design`);
-  console.log(`\n⚠️  IMPORTANT: Set GMAIL_APP_PASSWORD environment variable for Gmail access`);
-  
-  // Connect to Gmail IMAP
-  console.log(`\n📧 Connecting to Gmail IMAP...`);
-  connectToGmail();
+  console.log(`\n📧 Gmail Integration: Add your Gmail account via API to start fetching emails`);
 });
 
 // Handle graceful shutdown

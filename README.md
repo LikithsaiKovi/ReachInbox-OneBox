@@ -2,6 +2,163 @@
 
 A production-ready email management system that combines real-time IMAP monitoring, AI-powered categorization, and RAG-based reply suggestions.
 
+## 🎯 **FOR RECRUITERS - QUICK START GUIDE**
+
+### **Step 1: Download and Setup (2 minutes)**
+
+**Option A: One-Click Start (Windows)**
+```bash
+# 1. Clone the repository
+git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
+cd ReachInbox-OneBox
+
+# 2. Double-click start-recruiter-demo.bat
+# OR run: start-recruiter-demo.bat
+```
+
+**Option B: Manual Setup**
+```bash
+# 1. Clone the repository
+git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
+cd ReachInbox-OneBox
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the application
+node server-real-gmail.js
+```
+
+### **Step 2: Access the Application**
+- **Open your browser and go to:** `http://localhost:4000`
+- **The application will start automatically with real Gmail integration**
+
+### **Step 3: Add Your Gmail Account (Optional but Recommended)**
+1. **Click "Add Gmail Account"** in the interface
+2. **Enter your Gmail email** (e.g., `yourname@gmail.com`)
+3. **Enter your Gmail App Password** (see setup below if you don't have one)
+4. **Click "Add Account"** - emails will start loading automatically
+
+### **Step 4: Test Key Features**
+- ✅ **Search emails** using the search bar
+- ✅ **Filter by categories** (Spam, Interested, Meeting Booked, etc.)
+- ✅ **Filter by date range** using the date picker
+- ✅ **Export filtered emails** to CSV
+- ✅ **Generate AI reply suggestions** by clicking "Suggest Reply"
+- ✅ **Send real replies** using the reply functionality
+- ✅ **View analytics dashboard** with email statistics
+
+### **🔐 Gmail App Password Setup (If Needed)**
+If you want to connect your real Gmail account:
+
+1. **Enable 2-Factor Authentication:**
+   - Go to [Google Account Security](https://myaccount.google.com/security)
+   - Enable **2-Step Verification**
+
+2. **Generate App Password:**
+   - Go to [Google Account Security](https://myaccount.google.com/security)
+   - Click **App passwords** → **Mail** → **Other (custom name)**
+   - Enter name: "ReachInbox Onebox"
+   - **Copy the 16-character password** (looks like: `abcd efgh ijkl mnop`)
+
+3. **Use this password** when adding your Gmail account in the application
+
+### **🎯 What You'll See**
+- **Real-time email fetching** from Gmail
+- **AI-powered categorization** of emails (Spam, Interested, Meeting Booked, etc.)
+- **Advanced filtering** by category, priority, sentiment, and date
+- **Export functionality** that respects all your filters
+- **AI reply suggestions** for professional responses
+- **Analytics dashboard** with email statistics
+- **Modern, responsive UI** that works on desktop and mobile
+
+### **🚀 Demo Features to Show**
+1. **Add Gmail Account** → Watch emails load in real-time
+2. **Search & Filter** → Use category dropdowns and date filters
+3. **Export Data** → Click "Export CSV" to download filtered results
+4. **AI Features** → Click "Suggest Reply" to see AI-generated responses
+5. **Analytics** → View the dashboard with email statistics
+6. **Real-time Updates** → Watch the WebSocket connection indicator
+
+### **🔧 Quick Troubleshooting for Recruiters**
+
+**❌ "Cannot find module" error:**
+```bash
+# Make sure you're in the correct directory
+cd ReachInbox-OneBox
+node server-real-gmail.js
+```
+
+**❌ "Port 4000 already in use" error:**
+```bash
+# Kill any process using port 4000 (Windows)
+netstat -ano | findstr :4000
+taskkill /PID <PID_NUMBER> /F
+
+# Or use a different port
+PORT=4001 node server-real-gmail.js
+```
+
+**❌ "Gmail connection failed" error:**
+- Make sure you have a Gmail App Password (not your regular password)
+- Check that 2-Factor Authentication is enabled on your Gmail account
+- Try the demo without Gmail first - the app works with mock data too
+
+**❌ "npm install" fails:**
+```bash
+# Clear npm cache and try again
+npm cache clean --force
+npm install
+```
+
+**❌ Application won't start:**
+```bash
+# Check if Node.js is installed
+node --version
+npm --version
+
+# If not installed, download from: https://nodejs.org/
+```
+
+**✅ Windows Users - Use the Batch File:**
+```bash
+# Simply double-click start-recruiter-demo.bat
+# It will automatically check dependencies and start the app
+```
+
+**✅ Success Indicators:**
+- You see "🚀 ReachInbox Onebox with Real Gmail Integration running on port 4000"
+- Browser shows the application at `http://localhost:4000`
+- You can see the search interface and email management features
+
+### **📋 What This Application Demonstrates**
+
+**🎯 Technical Skills:**
+- **Full-Stack Development:** React frontend + Node.js backend
+- **Real-time Communication:** WebSocket integration for live updates
+- **AI Integration:** Groq API for email categorization and reply generation
+- **Email Processing:** IMAP protocol for Gmail integration
+- **Data Management:** In-memory storage with filtering and export
+- **Modern UI/UX:** Responsive design with Tailwind CSS
+
+**🚀 Key Features:**
+- **Real-time email fetching** from Gmail accounts
+- **AI-powered email categorization** (Spam, Interested, Meeting Booked, etc.)
+- **Advanced filtering system** (category, priority, sentiment, date range)
+- **Export functionality** that respects all applied filters
+- **AI reply suggestions** using Groq API
+- **Analytics dashboard** with email statistics
+- **Account management** (add/delete Gmail accounts)
+
+**💼 Business Value:**
+- **Email management** for sales and recruitment teams
+- **Lead prioritization** through AI categorization
+- **Data export** for CRM integration
+- **Automated reply suggestions** for faster response times
+- **Analytics insights** for email performance tracking
+
+---
+
 ## ⚡ Quick Demo (2 minutes)
 
 ### Option 1: Real Gmail Integration (Recommended)
@@ -107,7 +264,7 @@ ReachInbox Onebox provides:
 - **AI-powered categorization** of incoming emails (Interested, Meeting Booked, Not Interested, Spam, Out of Office)
 - **Elasticsearch indexing** for fast email search and filtering
 - **Vector-based RAG** using Qdrant for intelligent reply suggestions
-- **Slack & webhook integrations** for instant notifications on interested leads
+- **Optional Slack integrations** for instant notifications on interested leads
 - **Modern React frontend** for email management and search
 
 ## 🏗️ Architecture
@@ -139,8 +296,7 @@ RAG Reply Generator → Express API → React Frontend
 - Docker and Docker Compose
 - IMAP email accounts with app passwords
 - OpenAI API key (or compatible LLM service)
-- Slack webhook URL (optional)
-- Webhook.site URL for testing (optional)
+- Optional: Slack webhook URL (for notifications)
 
 ## 🚀 Quick Start
 
@@ -178,8 +334,8 @@ IMAP_ACCOUNT_2_PASS=your-app-password-2
 IMAP_ACCOUNT_2_HOST=imap.gmail.com
 
 # Integrations (Optional)
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
-WEBHOOK_SITE_URL=https://webhook.site/YOUR-UNIQUE-ID
+# Optional: Slack notifications (uncomment to enable)
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
 ```
 
 ### 3. Start Services
@@ -362,8 +518,7 @@ GET /api/emails/search?q=query&account=account_1&category=Interested&page=0&size
 - [x] Category-based filtering
 
 ### ✅ Phase 5: Integrations
-- [x] Slack webhook notifications
-- [x] Generic webhook support
+- [x] Optional Slack webhook notifications
 - [x] "Interested" lead triggers
 - [x] Rich message formatting
 
@@ -393,7 +548,7 @@ GET /api/emails/search?q=query&account=account_1&category=Interested&page=0&size
 3. **Test AI Categorization**
    - Send email with "interested" keywords
    - Verify category is set to "Interested"
-   - Check Slack/webhook notifications
+   - Check optional Slack notifications
 
 4. **Test Search & Filtering**
    - Use frontend search functionality
@@ -463,7 +618,7 @@ reachinbox-onebox/
 │   ├── imapClient.ts      # IMAP IDLE listeners
 │   ├── indexer.ts         # Elasticsearch operations
 │   ├── categorizer.ts     # AI categorization & LLM calls
-│   ├── integrations.ts   # Slack & webhook triggers
+│   ├── integrations.ts   # Optional Slack triggers
 │   └── rag.ts            # Qdrant & RAG implementation
 ├── public/
 │   └── index.html        # React frontend
@@ -496,8 +651,7 @@ npm run lint     # Run ESLint
 | `IMAP_ACCOUNT_*_USER` | IMAP username | Yes |
 | `IMAP_ACCOUNT_*_PASS` | IMAP password | Yes |
 | `IMAP_ACCOUNT_*_HOST` | IMAP host | Yes |
-| `SLACK_WEBHOOK_URL` | Slack webhook | No |
-| `WEBHOOK_SITE_URL` | Test webhook | No |
+| `SLACK_WEBHOOK_URL` | Slack webhook (optional) | No |
 
 ## 🚨 Troubleshooting
 
