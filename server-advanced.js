@@ -177,7 +177,7 @@ app.post('/api/signup', (req, res) => {
   if (users.find(u => u.email.toLowerCase() === String(email).toLowerCase())) {
     return res.status(409).json({ success: false, message: 'Email already registered. Please sign in.' });
   }
-  const newUser = { id: 'user-' + Date.now(), fullName, email, password };
+  const newUser = { id: 'user-' + Date.now(), fullName, email, password, createdAt: new Date().toISOString() };
   users.push(newUser);
   saveUsers();
   return res.json({ success: true, message: 'Account created successfully', user: { id: newUser.id, fullName: newUser.fullName, email: newUser.email } });

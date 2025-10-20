@@ -727,27 +727,11 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    
-                    // Show success message
-                    showSuccess('Account created successfully! Redirecting...');
-                    
-                    // Auto login
-                    try {
-                        const loginRes = await fetch('/api/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: signupData.email, password: signupData.password, remember: true })
-                        });
-                        const loginData = await loginRes.json();
-                        if (loginRes.ok && loginData.token) {
-                            localStorage.setItem('authToken', loginData.token);
-                            if (loginData.user) localStorage.setItem('authUser', JSON.stringify(loginData.user));
-                            window.location.href = '/';
-                            return;
-                        }
-                    } catch (_) {}
-                    // Fallback redirect
-                    window.location.href = '/login';
+                    // Show success message and redirect to Sign In
+                    showSuccess('Account created successfully! Please sign in.');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1200);
                 } else {
                     const errorData = await response.json().catch(()=>({}));
                     throw new Error(errorData.message || 'Sign up failed');
