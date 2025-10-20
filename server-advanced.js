@@ -171,18 +171,20 @@ app.post('/api/password/forgot', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
   const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
-  if (user) {
-    const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    const expiresAt = Date.now() + 15 * 60 * 1000;
-    resetTokens = resetTokens.filter(t => t.email !== user.email);
-    resetTokens.push({ token, email: user.email, expiresAt });
-    saveResetTokens();
-    const base = (process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`);
-    const resetUrl = `${base}/reset-password?token=${token}`;
-    console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'Email is not registered' });
   }
-  res.set('Content-Type', 'application/json');
-  return res.status(200).send(JSON.stringify({ success: true, message: 'If the email exists, a reset link has been sent.' }));
+
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const expiresAt = Date.now() + 15 * 60 * 1000;
+  resetTokens = resetTokens.filter(t => t.email !== user.email);
+  resetTokens.push({ token, email: user.email, expiresAt });
+  saveResetTokens();
+  const base = (process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`);
+  const resetUrl = `${base}/reset-password?token=${token}`;
+  console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
+
+  return res.status(200).json({ success: true, message: 'Reset link generated', resetUrl });
 });
 
 // Validate reset token
