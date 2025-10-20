@@ -705,6 +705,7 @@
 
             const [authToken, setAuthToken] = useState('');
             const [authUser, setAuthUser] = useState(null);
+            const [authLoaded, setAuthLoaded] = useState(false);
 
             // Load auth on mount
             useEffect(() => {
@@ -712,6 +713,7 @@
                 const user = localStorage.getItem('authUser');
                 if (token) setAuthToken(token);
                 if (user) { try { setAuthUser(JSON.parse(user)); } catch {} }
+                setAuthLoaded(true);
             }, []);
 
             const handleSignedIn = ({ token, user }) => {
@@ -782,8 +784,8 @@
             // Load accounts and stats on component mount
             useEffect(() => {
                 if (authToken) {
-                    fetchAccounts();
-                    fetchStats();
+                fetchAccounts();
+                fetchStats();
                 }
             }, [authToken]);
 
@@ -1045,7 +1047,7 @@
 
                         // Refresh stats from server for updated totals
                         await fetchStats();
-
+                        
                         // Refresh accounts list to remove the Gmail account
                         fetchAccounts();
                     } else {
@@ -1758,8 +1760,8 @@
                 );
             };
 
-            // If not authenticated, send user to dedicated login page
-            if (!authToken) {
+            // If not authenticated, send user to dedicated login page (only after storage is checked)
+            if (authLoaded && !authToken) {
                 if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
                     window.location.href = '/login';
                 }

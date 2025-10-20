@@ -416,7 +416,7 @@
             <h1 class="login-title">Holla, Welcome Back</h1>
             <p class="login-subtitle">Please sign in to your account to continue</p>
             
-            <form id="loginForm" class="login-form">
+            <form id="loginForm" class="login-form" action="/api/login" method="post" onsubmit="return false;">
                 <div class="form-group">
                     <label for="email" class="form-label">Email Address</label>
                     <input 
@@ -557,8 +557,8 @@
                         localStorage.setItem('authUser', JSON.stringify(result.user));
                     }
                     
-                    // Redirect back to app
-                    window.location.href = '/';
+                    // Redirect back to app root only once token stored
+                    setTimeout(()=>{ window.location.replace('/'); }, 50);
                 } else {
                     throw new Error('Login failed');
                 }
