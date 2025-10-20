@@ -441,6 +441,99 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // Simple authentication screen
+        function AuthScreen({ onSignedIn }) {
+            const [mode, setMode] = React.useState('signin');
+            const [fullName, setFullName] = React.useState('');
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [confirmPassword, setConfirmPassword] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
+            const [error, setError] = React.useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+                try {
+                    if (mode === 'signin') {
+                        const res = await fetch('/api/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password, remember: true })
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) throw new Error(data.message || 'Sign in failed');
+                        localStorage.setItem('authToken', data.token);
+                        localStorage.setItem('authUser', JSON.stringify(data.user));
+                        onSignedIn({ token: data.token, user: data.user });
+                    } else {
+                        const res = await fetch('/api/signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fullName, email, password, confirmPassword })
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) throw new Error(data.message || 'Sign up failed');
+                        // auto sign in
+                        const loginRes = await fetch('/api/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password, remember: true })
+                        });
+                        const loginData = await loginRes.json();
+                        if (!loginRes.ok || !loginData.success) throw new Error(loginData.message || 'Sign in failed');
+                        localStorage.setItem('authToken', loginData.token);
+                        localStorage.setItem('authUser', JSON.stringify(loginData.user));
+                        onSignedIn({ token: loginData.token, user: loginData.user });
+                    }
+                } catch (err) {
+                    setError(err.message || 'Something went wrong');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+                        <div className="mb-6 text-center">
+                            <div className="text-2xl font-bold text-gray-900">ReachInbox Onebox</div>
+                            <div className="text-sm text-gray-500 mt-1">{mode === 'signin' ? 'Sign in to continue' : 'Create your account'}</div>
+                        </div>
+                        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+                            <button onClick={() => setMode('signin')} className={`flex-1 py-2 rounded-md text-sm font-medium ${mode==='signin' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}>Sign In</button>
+                            <button onClick={() => setMode('signup')} className={`flex-1 py-2 rounded-md text-sm font-medium ${mode==='signup' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}>Sign Up</button>
+                        </div>
+                        {error && (<div className="mb-4 text-sm text-red-600">{error}</div>)}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {mode === 'signup' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Full name</label>
+                                    <input value={fullName} onChange={e=>setFullName(e.target.value)} className="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Jane Doe" required />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Email</label>
+                                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Password</label>
+                                <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" required />
+                            </div>
+                            {mode === 'signup' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Confirm password</label>
+                                    <input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} className="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" required />
+                                </div>
+                            )}
+                            <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition">{loading ? 'Please wait...' : (mode==='signin' ? 'Sign In' : 'Create account')}</button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
         function App() {
             const [searchQuery, setSearchQuery] = useState('');
             const [emails, setEmails] = useState([]);
@@ -610,6 +703,34 @@
                 }, dismissTime);
             };
 
+            const [authToken, setAuthToken] = useState('');
+            const [authUser, setAuthUser] = useState(null);
+
+            // Load auth on mount
+            useEffect(() => {
+                const token = localStorage.getItem('authToken') || '';
+                const user = localStorage.getItem('authUser');
+                if (token) setAuthToken(token);
+                if (user) { try { setAuthUser(JSON.parse(user)); } catch {} }
+            }, []);
+
+            const handleSignedIn = ({ token, user }) => {
+                setAuthToken(token);
+                setAuthUser(user || null);
+                fetchAccounts();
+                fetchStats();
+            };
+
+            const handleSignOut = () => {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('authUser');
+                setAuthToken('');
+                setAuthUser(null);
+                setEmails([]);
+                setAccounts([]);
+                setStats(null);
+            };
+
             // WebSocket connection for real-time updates
             useEffect(() => {
                 const ws = new WebSocket('ws://localhost:8080');
@@ -660,9 +781,11 @@
 
             // Load accounts and stats on component mount
             useEffect(() => {
-                fetchAccounts();
-                fetchStats();
-            }, []);
+                if (authToken) {
+                    fetchAccounts();
+                    fetchStats();
+                }
+            }, [authToken]);
 
             // Sticky header scroll effect
             useEffect(() => {
@@ -1635,6 +1758,11 @@
                 );
             };
 
+            // Require auth
+            if (!authToken) {
+                return <AuthScreen onSignedIn={handleSignedIn} />;
+            }
+
             return (
                 <div className="min-h-screen">
                     {/* Theme Toggle Button */}
@@ -1677,6 +1805,11 @@
                                         <div className={`w-3 h-3 rounded-full ${wsConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
                                             <span className="text-sm font-medium">{wsConnected ? 'Live' : 'Offline'}</span>
                                     </div>
+                                        {/* User & Logout */}
+                                        <div className="hidden sm:flex items-center space-x-3">
+                                            {authUser && (<span className="text-sm text-white/90">{authUser.email}</span>)}
+                                            <button onClick={handleSignOut} className="text-sm px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30">Sign out</button>
+                                        </div>
                                         
                                         {/* Email Stats */}
                                     {stats && (
