@@ -105,8 +105,40 @@ try {
   console.error('Error loading users:', e.message);
   users = [];
 }
+const normalizeEmail = (value) => String(value || '').toLowerCase().trim();
+const dedupeUsersByEmail = (list) => {
+  const seen = new Set();
+  const deduped = [];
+  for (const u of list) {
+    const e = normalizeEmail(u.email);
+    if (seen.has(e)) continue;
+    seen.add(e);
+    deduped.push({ ...u, email: e });
+  }
+  return deduped;
+};
+const loadUsersFromDisk = () => {
+  try {
+    if (fs.existsSync(usersFile)) {
+      const loaded = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+      if (Array.isArray(loaded)) {
+        users = dedupeUsersByEmail(loaded);
+      }
+    }
+  } catch (e) {
+    console.error('Error loading users:', e.message);
+  }
+};
 const saveUsers = () => {
-  try { fs.writeFileSync(usersFile, JSON.stringify(users, null, 2)); } catch (e) { console.error('Error saving users:', e.message); }
+  try {
+    const dir = path.dirname(usersFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    users = dedupeUsersByEmail(users);
+    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    console.log(`👤 Users saved (${users.length} total)`);
+  } catch (e) { console.error('Error saving users:', e.message); }
 };
 try {
   if (fs.existsSync(resetTokensFile)) {
@@ -117,7 +149,13 @@ try {
   resetTokens = [];
 }
 const saveResetTokens = () => {
-  try { fs.writeFileSync(resetTokensFile, JSON.stringify(resetTokens, null, 2)); } catch (e) { console.error('Error saving reset tokens:', e.message); }
+  try {
+    const dir = path.dirname(resetTokensFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(resetTokensFile, JSON.stringify(resetTokens, null, 2));
+  } catch (e) { console.error('Error saving reset tokens:', e.message); }
 };
 
 // Login API endpoint
@@ -130,7 +168,7 @@ app.post('/api/login', (req, res) => {
   if (!gmailRegex.test(String(email))) {
     return res.status(400).json({ success: false, message: 'Use a valid Gmail address' });
   }
-  const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
+  const user = users.find(u => String(u.email || '').toLowerCase().trim() === String(email || '').toLowerCase().trim());
   if (!user) {
     return res.status(404).json({ success: false, message: 'No account found. Please sign up.' });
   }
@@ -158,6 +196,7 @@ app.post('/api/signup', (req, res) => {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
   }
   // Enforce Gmail and reasonable local-part (avoid obviously fake/random strings)
+  // Normalize email once at the top
   const emailLower = String(email).toLowerCase().trim();
   const gmailStrict = /^[a-z0-9](?:[a-z0-9.+_\-]{1,28})[a-z0-9]@gmail\.com$/; // 3-30 chars local part, sane chars, starts/ends alnum
   if (!gmailStrict.test(emailLower)) {
@@ -174,20 +213,22 @@ app.post('/api/signup', (req, res) => {
   if (!gmailRegex.test(email)) {
     return res.status(400).json({ success: false, message: 'Only Gmail addresses are allowed (example@gmail.com)' });
   }
-  if (users.find(u => u.email.toLowerCase() === String(email).toLowerCase())) {
+  // Reload from disk before checking to avoid stale memory allowing duplicates
+  loadUsersFromDisk();
+  if (users.find(u => String(u.email || '').toLowerCase().trim() === emailLower)) {
     return res.status(409).json({ success: false, message: 'Email already registered. Please sign in.' });
   }
-  const newUser = { id: 'user-' + Date.now(), fullName, email, password, createdAt: new Date().toISOString() };
+  const newUser = { id: 'user-' + Date.now(), fullName, email: emailLower, password, createdAt: new Date().toISOString() };
   users.push(newUser);
   saveUsers();
   return res.json({ success: true, message: 'Account created successfully', user: { id: newUser.id, fullName: newUser.fullName, email: newUser.email } });
 });
 
-// Forgot password - generate reset link
+// Forgot password - generate reset link (and send email)
 app.post('/api/password/forgot', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-  const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
+  const user = users.find(u => String(u.email || '').toLowerCase().trim() === String(email || '').toLowerCase().trim());
   if (!user) {
     return res.status(404).json({ success: false, message: 'Email is not registered' });
   }
@@ -198,8 +239,42 @@ app.post('/api/password/forgot', async (req, res) => {
   resetTokens.push({ token, email: user.email, expiresAt });
   saveResetTokens();
   const base = (process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`);
-  const resetUrl = `${base}/reset-password?token=${token}`;
+  const resetUrl = `${base}/reset-password.html?token=${token}`;
   console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
+
+  // Attempt to send email. Force SMTP if configured; otherwise fall back to a test account
+  try {
+    const nodemailer = require('nodemailer');
+    const host = process.env.SMTP_HOST;
+    const port = Number(process.env.SMTP_PORT || 587);
+    const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
+    const userName = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || (userName ? `"ReachInbox Onebox" <${userName}>` : 'ReachInbox <no-reply@reachinbox.local>');
+    let transporter;
+    let usingTest = false;
+    if (host && userName && pass) {
+      transporter = nodemailer.createTransport({ host, port, secure, auth: { user: userName, pass } });
+    } else {
+      const test = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({ host: test.smtp.host, port: test.smtp.port, secure: test.smtp.secure, auth: { user: test.user, pass: test.pass } });
+      usingTest = true;
+    }
+    const info = await transporter.sendMail({
+      from,
+      to: user.email,
+      subject: 'Reset Password',
+      text: `Reset your password using the link below (valid for 15 minutes):\n${resetUrl}`,
+      html: `<p>Click the button below to reset your password (valid for 15 minutes):</p><p><a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px">Reset Password</a></p><p>If the button doesn't work, paste this link into your browser:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
+    });
+    console.log(`✉️  Reset email sent to ${user.email}`);
+    if (usingTest) {
+      const preview = nodemailer.getTestMessageUrl(info);
+      if (preview) console.log(`🔗 Email preview URL: ${preview}`);
+    }
+  } catch (e) {
+    console.error('Error sending reset email:', e.message);
+  }
 
   return res.status(200).json({ success: true, message: 'Reset link generated', resetUrl });
 });
