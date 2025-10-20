@@ -446,7 +446,7 @@
                         <input type="checkbox" id="remember" name="remember" class="checkbox">
                         <label for="remember" class="checkbox-label">Remember me</label>
                     </div>
-                    <a href="/forgot-password" class="forgot-password">Forgot Password?</a>
+                    <a href="/forgot-password" id="forgotPwdLink" class="forgot-password">Forgot Password?</a>
                 </div>
                 
                 <button type="submit" class="signin-button" id="signinBtn">
@@ -519,6 +519,21 @@
         const buttonText = signinBtn.querySelector('.button-text');
         const loading = signinBtn.querySelector('.loading');
 
+        // Simple toast
+        function toast(text, type='info') {
+            const t = document.createElement('div');
+            t.style.cssText = `position:fixed; top:16px; right:16px; z-index:2000; padding:12px 14px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.12); ${type==='success' ? 'background:#D1FAE5;color:#065F46;border:1px solid #A7F3D0' : type==='error' ? 'background:#FEE2E2;color:#991B1B;border:1px solid #FECACA' : 'background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE'}`;
+            t.textContent = text;
+            document.body.appendChild(t);
+            setTimeout(()=>{ t.remove(); }, 2500);
+        }
+
+        // Ensure forgot password link navigates without submitting the form
+        document.getElementById('forgotPwdLink')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.assign('/forgot-password');
+        });
+
         // Form submission
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -557,8 +572,9 @@
                         localStorage.setItem('authUser', JSON.stringify(result.user));
                     }
                     
+                    toast('Signed in successfully', 'success');
                     // Redirect back to app root only once token stored
-                    setTimeout(()=>{ window.location.replace('/'); }, 50);
+                    setTimeout(()=>{ window.location.replace('/'); }, 300);
                 } else {
                     throw new Error('Login failed');
                 }
