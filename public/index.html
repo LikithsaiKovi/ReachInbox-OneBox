@@ -731,6 +731,7 @@
                 setEmails([]);
                 setAccounts([]);
                 setStats(null);
+                window.location.href = '/login';
             };
 
             // WebSocket connection for real-time updates
@@ -1813,7 +1814,7 @@
                                         {/* User & Logout */}
                                         <div className="flex items-center space-x-3">
                                             {authUser && (<span className="text-sm text-white/90">{authUser.email}</span>)}
-                                            <button onClick={handleSignOut} className="text-sm px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30">Sign out</button>
+                                            <button onClick={handleSignOut} className="text-sm px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 transition-colors">Sign out</button>
                                         </div>
                                         
                                         {/* Email Stats */}
