@@ -173,10 +173,12 @@ app.post('/api/password/forgot', async (req, res) => {
     resetTokens = resetTokens.filter(t => t.email !== user.email);
     resetTokens.push({ token, email: user.email, expiresAt });
     saveResetTokens();
-    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+    const base = (process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`);
+    const resetUrl = `${base}/reset-password?token=${token}`;
     console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
   }
-  return res.json({ success: true, message: 'If the email exists, a reset link has been sent.' });
+  res.set('Content-Type', 'application/json');
+  return res.status(200).send(JSON.stringify({ success: true, message: 'If the email exists, a reset link has been sent.' }));
 });
 
 // Validate reset token
