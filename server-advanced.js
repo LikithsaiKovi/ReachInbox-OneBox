@@ -80,83 +80,125 @@ app.get('/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'signup.html'));
 });
 
+// Forgot/Reset password pages
+app.get('/forgot-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
+});
+
+// Simple user store (demo purposes only)
+let users = [];
+const usersFile = path.join(__dirname, 'src', 'users.json');
+let resetTokens = [];
+const resetTokensFile = path.join(__dirname, 'src', 'resetTokens.json');
+
+try {
+  if (fs.existsSync(usersFile)) {
+    users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+  }
+} catch (e) {
+  console.error('Error loading users:', e.message);
+  users = [];
+}
+const saveUsers = () => {
+  try { fs.writeFileSync(usersFile, JSON.stringify(users, null, 2)); } catch (e) { console.error('Error saving users:', e.message); }
+};
+try {
+  if (fs.existsSync(resetTokensFile)) {
+    resetTokens = JSON.parse(fs.readFileSync(resetTokensFile, 'utf8'));
+  }
+} catch (e) {
+  console.error('Error loading reset tokens:', e.message);
+  resetTokens = [];
+}
+const saveResetTokens = () => {
+  try { fs.writeFileSync(resetTokensFile, JSON.stringify(resetTokens, null, 2)); } catch (e) { console.error('Error saving reset tokens:', e.message); }
+};
+
 // Login API endpoint
 app.post('/api/login', (req, res) => {
-  const { email, password, remember } = req.body;
-  
-  // Simple validation (replace with actual authentication logic)
-  if (email && password) {
-    // For demo purposes, accept any email/password combination
-    const token = 'demo-token-' + Date.now();
-    
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token: token,
-      user: {
-        email: email,
-        name: email.split('@')[0]
-      }
-    });
-  } else {
-    res.status(400).json({
-      success: false,
-      message: 'Email and password are required'
-    });
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Email and password are required' });
   }
+  const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'No account found. Please sign up.' });
+  }
+  if (user.password !== password) {
+    return res.status(400).json({ success: false, message: 'Incorrect password. Use Forgot Password if needed.' });
+  }
+  const token = 'demo-token-' + Date.now();
+  return res.json({ success: true, message: 'Login successful', token, user: { email: user.email, name: user.fullName || user.email.split('@')[0] } });
 });
 
 // Signup API endpoint
 app.post('/api/signup', (req, res) => {
   const { fullName, email, password, confirmPassword } = req.body;
-  
-  // Validation
   if (!fullName || !email || !password || !confirmPassword) {
-    return res.status(400).json({
-      success: false,
-      message: 'All fields are required'
-    });
+    return res.status(400).json({ success: false, message: 'All fields are required' });
   }
-  
   if (password !== confirmPassword) {
-    return res.status(400).json({
-      success: false,
-      message: 'Passwords do not match'
-    });
+    return res.status(400).json({ success: false, message: 'Passwords do not match' });
   }
-  
   if (password.length < 8) {
-    return res.status(400).json({
-      success: false,
-      message: 'Password must be at least 8 characters long'
-    });
+    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
   }
-  
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Please enter a valid email address'
-    });
+    return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
   }
-  
-  // For demo purposes, always succeed
-  // In production, you would:
-  // 1. Check if email already exists
-  // 2. Hash the password
-  // 3. Store user in database
-  // 4. Send verification email
-  
-  res.json({
-    success: true,
-    message: 'Account created successfully',
-    user: {
-      fullName: fullName,
-      email: email,
-      id: 'user-' + Date.now()
-    }
-  });
+  if (users.find(u => u.email.toLowerCase() === String(email).toLowerCase())) {
+    return res.status(409).json({ success: false, message: 'Email already registered. Please sign in.' });
+  }
+  const newUser = { id: 'user-' + Date.now(), fullName, email, password };
+  users.push(newUser);
+  saveUsers();
+  return res.json({ success: true, message: 'Account created successfully', user: { id: newUser.id, fullName: newUser.fullName, email: newUser.email } });
+});
+
+// Forgot password - generate reset link
+app.post('/api/password/forgot', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+  const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
+  if (user) {
+    const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    resetTokens = resetTokens.filter(t => t.email !== user.email);
+    resetTokens.push({ token, email: user.email, expiresAt });
+    saveResetTokens();
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+    console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
+  }
+  return res.json({ success: true, message: 'If the email exists, a reset link has been sent.' });
+});
+
+// Validate reset token
+app.get('/api/password/reset/validate', (req, res) => {
+  const { token } = req.query;
+  const entry = resetTokens.find(t => t.token === token);
+  if (!entry) return res.status(400).json({ valid: false, message: 'Invalid token' });
+  if (Date.now() > entry.expiresAt) return res.status(400).json({ valid: false, message: 'Token expired' });
+  return res.json({ valid: true, email: entry.email });
+});
+
+// Reset password
+app.post('/api/password/reset', (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token and newPassword required' });
+  const entry = resetTokens.find(t => t.token === token);
+  if (!entry) return res.status(400).json({ success: false, message: 'Invalid token' });
+  if (Date.now() > entry.expiresAt) return res.status(400).json({ success: false, message: 'Token expired' });
+  const user = users.find(u => u.email === entry.email);
+  if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+  user.password = newPassword;
+  saveUsers();
+  resetTokens = resetTokens.filter(t => t.token !== token);
+  saveResetTokens();
+  return res.json({ success: true, message: 'Password updated successfully' });
 });
 
 // Gmail account management
