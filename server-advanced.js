@@ -153,6 +153,10 @@ app.post('/api/signup', (req, res) => {
   if (!emailRegex.test(email)) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
   }
+  const gmailRegex = /^[A-Za-z0-9.+_\-]+@gmail\.com$/i;
+  if (!gmailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: 'Only Gmail addresses are allowed (example@gmail.com)' });
+  }
   if (users.find(u => u.email.toLowerCase() === String(email).toLowerCase())) {
     return res.status(409).json({ success: false, message: 'Email already registered. Please sign in.' });
   }
