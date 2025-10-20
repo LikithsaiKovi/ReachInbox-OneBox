@@ -2,12 +2,33 @@
 
 A lightweight, recruiter-friendly demo of an AI-powered email management app: fetches Gmail, categorizes emails, filters/searches, exports CSV, sends replies, and shows analytics. Setup takes ~2 minutes.
 
-## Start (2 commands)
+## Quick Start Commands
+
+### 1. Clone & Setup
 ```bash
 git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
-cd ReachInbox-OneBox && npm install && node server-advanced.js
+cd ReachInbox-OneBox
+npm install
 ```
-Open `http://localhost:4000`.
+
+### 2. Start Server
+```bash
+node server-advanced.js
+```
+
+### 3. Access Application
+Open your browser and navigate to:
+```
+http://localhost:4000
+```
+
+**Flow:** Login page → Sign in/Sign up → Main application
+
+## Authentication Flow
+1. **First Visit:** Automatically redirected to login page
+2. **New User:** Click "Sign Up" → Create account with Gmail → Redirected to login
+3. **Existing User:** Enter email/password → Access main application
+4. **Forgot Password:** Click "Forgot Password" → Reset via email
 
 ## What to Demo (60–90 seconds)
 - Add Gmail account (uses App Password) and watch emails load (up to 200).
@@ -48,9 +69,11 @@ IMAP_ACCOUNT_1_TLS=true
 - GET `/api/emails/export?format=csv` – export
 
 ## Troubleshooting (fast)
-- Port busy: kill prior node or use `PORT=4001 node server-advanced.js`.
-- App Password errors: ensure 2FA enabled and 16‑char App Password (no spaces).
-- Links not opening: open email detail → links are clickable; PDFs/images preview inline.
+- **Port busy:** `taskkill /f /im node.exe` (Windows) or `pkill node` (Mac/Linux), then restart
+- **Server won't start:** Ensure you're in the project directory: `cd ReachInbox-OneBox`
+- **Login issues:** Use valid Gmail address format (e.g., `user@gmail.com`)
+- **App Password errors:** Ensure 2FA enabled and 16‑char App Password (no spaces)
+- **Links not opening:** Open email detail → links are clickable; PDFs/images preview inline
 
 ## Tech (one‑liner)
 Node.js + Express + vanilla React (single HTML), IMAP for Gmail, Groq‑style AI categorization, WebSocket live updates, optional Slack/Webhook.
