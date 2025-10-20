@@ -513,11 +513,21 @@
     </div>
 
     <script>
+        // Force fresh sign-in: clear any previous demo tokens
+        try { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); } catch {}
+
         // Form handling
         const loginForm = document.getElementById('loginForm');
         const signinBtn = document.getElementById('signinBtn');
         const buttonText = signinBtn.querySelector('.button-text');
         const loading = signinBtn.querySelector('.loading');
+        // Disable submit until fields are filled
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        function updateBtn() { signinBtn.disabled = !(emailInput.value && passwordInput.value && passwordInput.value.length >= 8); }
+        emailInput.addEventListener('input', updateBtn);
+        passwordInput.addEventListener('input', updateBtn);
+        updateBtn();
 
         // Simple toast
         function toast(text, type='info') {
@@ -577,11 +587,12 @@
                     // Redirect back to app root only once token stored
                     setTimeout(()=>{ window.location.replace('/'); }, 300);
                 } else {
-                    throw new Error('Login failed');
+                    const err = await response.json().catch(()=>({}));
+                    throw new Error(err.message || 'Login failed');
                 }
             } catch (error) {
                 // Handle error (show error message)
-                showError('Invalid email or password. Please try again.');
+                showError(error.message || 'Invalid email or password. Please try again.');
                 
                 // Reset button state
                 buttonText.style.display = 'block';

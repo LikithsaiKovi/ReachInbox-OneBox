@@ -707,7 +707,7 @@
             
             try {
                 // Simulate API call (replace with actual endpoint)
-                const response = await fetch('/api/signup', {
+                    const response = await fetch('/api/signup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -739,7 +739,7 @@
                     // Fallback redirect
                     window.location.href = '/login';
                 } else {
-                    const errorData = await response.json();
+                    const errorData = await response.json().catch(()=>({}));
                     throw new Error(errorData.message || 'Sign up failed');
                 }
             } catch (error) {

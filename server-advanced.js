@@ -126,12 +126,16 @@ app.post('/api/login', (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ success: false, message: 'Email and password are required' });
   }
+  const gmailRegex = /^[A-Za-z0-9.+_\-]+@gmail\.com$/i;
+  if (!gmailRegex.test(String(email))) {
+    return res.status(400).json({ success: false, message: 'Use a valid Gmail address' });
+  }
   const user = users.find(u => u.email.toLowerCase() === String(email).toLowerCase());
   if (!user) {
-    return res.status(400).json({ success: false, message: 'No account found. Please sign up.' });
+    return res.status(404).json({ success: false, message: 'No account found. Please sign up.' });
   }
   if (user.password !== password) {
-    return res.status(400).json({ success: false, message: 'Incorrect password. Use Forgot Password if needed.' });
+    return res.status(401).json({ success: false, message: 'Incorrect password. Use Forgot Password if needed.' });
   }
   const token = 'demo-token-' + Date.now();
   return res.json({ success: true, message: 'Login successful', token, user: { email: user.email, name: user.fullName || user.email.split('@')[0] } });
