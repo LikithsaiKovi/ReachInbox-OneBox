@@ -446,7 +446,7 @@
                         <input type="checkbox" id="remember" name="remember" class="checkbox">
                         <label for="remember" class="checkbox-label">Remember me</label>
                     </div>
-                    <a href="/forgot-password" id="forgotPwdLink" class="forgot-password">Forgot Password?</a>
+                    <button type="button" id="forgotPwdBtn" class="forgot-password" style="background:none;border:none;cursor:pointer;padding:0;">Forgot Password?</button>
                 </div>
                 
                 <button type="submit" class="signin-button" id="signinBtn">
@@ -529,9 +529,10 @@
         }
 
         // Ensure forgot password link navigates without submitting the form
-        document.getElementById('forgotPwdLink')?.addEventListener('click', function(e) {
+        document.getElementById('forgotPwdBtn')?.addEventListener('click', function(e) {
             e.preventDefault();
-            window.location.assign('/forgot-password');
+            toast('Opening password reset…');
+            window.location.href = '/forgot-password';
         });
 
         // Form submission

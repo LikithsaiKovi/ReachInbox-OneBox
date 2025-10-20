@@ -82,6 +82,8 @@ app.get('/signup', (req, res) => {
 
 // Forgot/Reset password pages
 app.get('/forgot-password', (req, res) => {
+  // Avoid caching to ensure navigation always loads fresh page
+  res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
 });
 app.get('/reset-password', (req, res) => {
