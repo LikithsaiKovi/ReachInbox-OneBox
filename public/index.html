@@ -1758,9 +1758,12 @@
                 );
             };
 
-            // Require auth
+            // If not authenticated, send user to dedicated login page
             if (!authToken) {
-                return <AuthScreen onSignedIn={handleSignedIn} />;
+                if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+                return null;
             }
 
             return (

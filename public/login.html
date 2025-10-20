@@ -549,13 +549,16 @@
                 if (response.ok) {
                     const result = await response.json();
                     
-                    // Store auth token if provided
+                    // Store auth token and user
                     if (result.token) {
                         localStorage.setItem('authToken', result.token);
                     }
+                    if (result.user) {
+                        localStorage.setItem('authUser', JSON.stringify(result.user));
+                    }
                     
-                    // Redirect to dashboard
-                    window.location.href = '/dashboard';
+                    // Redirect back to app
+                    window.location.href = '/';
                 } else {
                     throw new Error('Login failed');
                 }
