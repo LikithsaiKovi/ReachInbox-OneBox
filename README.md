@@ -1,6 +1,6 @@
-# ReachInbox Onebox
+# ReachInbox Onebox - Advanced Email Management System
 
-A production-ready email management system that combines real-time IMAP monitoring, AI-powered categorization, and RAG-based reply suggestions.
+A production-ready email management system that combines real-time IMAP monitoring, AI-powered categorization, advanced analytics, and modern UI/UX for recruiters and sales teams.
 
 ## 🎯 **FOR RECRUITERS - QUICK START GUIDE**
 
@@ -26,7 +26,7 @@ cd ReachInbox-OneBox
 npm install
 
 # 3. Start the application
-node server-real-gmail.js
+node server-advanced.js
 ```
 
 ### **Step 2: Access the Application**
@@ -41,12 +41,17 @@ node server-real-gmail.js
 
 ### **Step 4: Test Key Features**
 - ✅ **Search emails** using the search bar
-- ✅ **Filter by categories** (Spam, Interested, Meeting Booked, etc.)
+- ✅ **Filter by 20+ categories** (Interested, Social, Job, Newsletter, etc.)
+- ✅ **Filter by priority** (Urgent, High, Medium, Low)
+- ✅ **Filter by sentiment** (Positive, Negative, Neutral)
 - ✅ **Filter by date range** using the date picker
-- ✅ **Export filtered emails** to CSV
+- ✅ **Export filtered emails** to CSV with confirmation dialog
 - ✅ **Generate AI reply suggestions** by clicking "Suggest Reply"
 - ✅ **Send real replies** using the reply functionality
-- ✅ **View analytics dashboard** with email statistics
+- ✅ **View advanced analytics dashboard** with visual charts
+- ✅ **Real-time notifications** for Slack and Webhooks
+- ✅ **Account switching** with automatic email filtering
+- ✅ **Modern responsive UI** with dark/light theme toggle
 
 ### **🔐 Gmail App Password Setup (If Needed)**
 If you want to connect your real Gmail account:
@@ -64,21 +69,34 @@ If you want to connect your real Gmail account:
 3. **Use this password** when adding your Gmail account in the application
 
 ### **🎯 What You'll See**
-- **Real-time email fetching** from Gmail
-- **AI-powered categorization** of emails (Spam, Interested, Meeting Booked, etc.)
+- **Real-time email fetching** from Gmail (200+ emails per account)
+- **AI-powered categorization** with 20+ categories including:
+  - **Interested** - High-priority business inquiries
+  - **Social** - LinkedIn, Facebook, Twitter notifications
+  - **Job** - Career and recruitment emails
+  - **Newsletter** - Marketing and promotional emails
+  - **Billing** - Payment and invoice related
+  - **Security** - Login alerts and security notifications
+  - **Support** - Customer support requests
+  - **Meeting** - Meeting requests and scheduling
+  - **Urgent** - Time-sensitive emails
+  - **And 12+ more categories...**
 - **Advanced filtering** by category, priority, sentiment, and date
-- **Export functionality** that respects all your filters
+- **Export functionality** that respects all your filters with confirmation dialog
 - **AI reply suggestions** for professional responses
-- **Analytics dashboard** with email statistics
-- **Modern, responsive UI** that works on desktop and mobile
+- **Visual analytics dashboard** with donut charts and progress bars
+- **Modern, responsive UI** with gradient themes and glassmorphism effects
+- **Real-time notifications** via Slack and Webhooks for "Interested" emails
 
 ### **🚀 Demo Features to Show**
-1. **Add Gmail Account** → Watch emails load in real-time
-2. **Search & Filter** → Use category dropdowns and date filters
-3. **Export Data** → Click "Export CSV" to download filtered results
+1. **Add Gmail Account** → Watch emails load in real-time (200+ emails)
+2. **Search & Filter** → Use the enhanced category dropdown with 20+ options
+3. **Export Data** → Click "Export CSV" and choose "Current View Only" or "All Emails"
 4. **AI Features** → Click "Suggest Reply" to see AI-generated responses
-5. **Analytics** → View the dashboard with email statistics
+5. **Analytics Dashboard** → View visual charts with category distribution
 6. **Real-time Updates** → Watch the WebSocket connection indicator
+7. **Theme Toggle** → Switch between light and dark themes
+8. **Account Switching** → Switch between multiple Gmail accounts seamlessly
 
 ### **🔧 Quick Troubleshooting for Recruiters**
 
@@ -86,7 +104,7 @@ If you want to connect your real Gmail account:
 ```bash
 # Make sure you're in the correct directory
 cd ReachInbox-OneBox
-node server-real-gmail.js
+node server-advanced.js
 ```
 
 **❌ "Port 4000 already in use" error:**
@@ -96,7 +114,7 @@ netstat -ano | findstr :4000
 taskkill /PID <PID_NUMBER> /F
 
 # Or use a different port
-PORT=4001 node server-real-gmail.js
+PORT=4001 node server-advanced.js
 ```
 
 **❌ "Gmail connection failed" error:**
@@ -127,9 +145,10 @@ npm --version
 ```
 
 **✅ Success Indicators:**
-- You see "🚀 ReachInbox Onebox with Real Gmail Integration running on port 4000"
+- You see "🚀 ReachInbox Onebox Advanced Edition running on port 4000"
 - Browser shows the application at `http://localhost:4000`
 - You can see the search interface and email management features
+- WebSocket connection shows "Live" status
 
 ### **📋 What This Application Demonstrates**
 
@@ -138,17 +157,21 @@ npm --version
 - **Real-time Communication:** WebSocket integration for live updates
 - **AI Integration:** Groq API for email categorization and reply generation
 - **Email Processing:** IMAP protocol for Gmail integration
-- **Data Management:** In-memory storage with filtering and export
-- **Modern UI/UX:** Responsive design with Tailwind CSS
+- **Data Management:** In-memory storage with advanced filtering and export
+- **Modern UI/UX:** Responsive design with Tailwind CSS, gradients, and animations
+- **API Integration:** Slack Bot API and Webhook integrations
+- **Data Visualization:** Charts and analytics dashboard
 
 **🚀 Key Features:**
-- **Real-time email fetching** from Gmail accounts
-- **AI-powered email categorization** (Spam, Interested, Meeting Booked, etc.)
+- **Real-time email fetching** from Gmail accounts (200+ emails per account)
+- **AI-powered email categorization** with 20+ categories
 - **Advanced filtering system** (category, priority, sentiment, date range)
-- **Export functionality** that respects all applied filters
+- **Smart export functionality** with confirmation dialogs
 - **AI reply suggestions** using Groq API
-- **Analytics dashboard** with email statistics
-- **Account management** (add/delete Gmail accounts)
+- **Visual analytics dashboard** with donut charts and progress bars
+- **Account management** (add/delete Gmail accounts with validation)
+- **Real-time notifications** via Slack and Webhooks
+- **Modern responsive UI** with theme toggle and glassmorphism effects
 
 **💼 Business Value:**
 - **Email management** for sales and recruitment teams
@@ -156,6 +179,8 @@ npm --version
 - **Data export** for CRM integration
 - **Automated reply suggestions** for faster response times
 - **Analytics insights** for email performance tracking
+- **Real-time notifications** for important leads
+- **Multi-account support** for team collaboration
 
 ---
 
@@ -168,7 +193,7 @@ cd reachinbox-onebox
 npm install
 cp env.example .env
 # Edit .env with your Gmail app password
-npm run real-gmail
+node server-advanced.js
 ```
 
 ### Option 2: Mock Data Demo
@@ -176,7 +201,7 @@ npm run real-gmail
 git clone <your-repo-url>
 cd reachinbox-onebox
 npm install
-npm run grok
+node server-advanced.js
 ```
 
 ### Option 3: One-Command Start (Windows)
@@ -229,8 +254,15 @@ LLM_API_KEY=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
 LLM_API_URL=https://api.groq.com/openai/v1/completions
 LLM_EMBEDDINGS_URL=https://api.groq.com/openai/v1/embeddings
 
-# Gmail IMAP Configuration
-IMAP_ACCOUNT_1_USER=sailikith57@gmail.com
+# Slack Integration (Optional)
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token-here
+SLACK_CHANNEL_ID=C01234567
+
+# Webhook Integration (Optional)
+WEBHOOK_URL=https://webhook.site/your-custom-url
+
+# Gmail IMAP Configuration (Optional - can add via UI)
+IMAP_ACCOUNT_1_USER=your-email@gmail.com
 IMAP_ACCOUNT_1_PASS=your-16-character-app-password-here
 IMAP_ACCOUNT_1_HOST=imap.gmail.com
 IMAP_ACCOUNT_1_PORT=993
@@ -240,15 +272,16 @@ IMAP_ACCOUNT_1_TLS=true
 **⚠️ IMPORTANT:**
 - Replace `your-16-character-app-password-here` with your actual Gmail app password
 - The `.env` file is in `.gitignore` for security - it won't be pushed to GitHub
+- Slack and Webhook integrations are optional but provide real-time notifications
 
 ### **Step 3: Start the Application**
 
 ```bash
 # Start with real Gmail integration
-npm run real-gmail
+node server-advanced.js
 
 # OR start with mock data (for testing)
-npm run grok
+node server-advanced.js
 ```
 
 ### **Step 4: Access the Application**
@@ -260,107 +293,66 @@ npm run grok
 ## 🚀 Overview
 
 ReachInbox Onebox provides:
-- **Real-time IMAP IDLE** monitoring for multiple email accounts
-- **AI-powered categorization** of incoming emails (Interested, Meeting Booked, Not Interested, Spam, Out of Office)
-- **Elasticsearch indexing** for fast email search and filtering
-- **Vector-based RAG** using Qdrant for intelligent reply suggestions
-- **Optional Slack integrations** for instant notifications on interested leads
-- **Modern React frontend** for email management and search
+- **Real-time IMAP monitoring** for multiple email accounts
+- **AI-powered categorization** with 20+ categories
+- **Advanced analytics dashboard** with visual charts
+- **Smart filtering system** by category, priority, sentiment, and date
+- **Export functionality** with confirmation dialogs
+- **AI reply suggestions** using Groq API
+- **Real-time notifications** via Slack and Webhooks
+- **Modern responsive UI** with theme toggle and glassmorphism effects
+- **Account management** with credential validation
 
 ## 🏗️ Architecture
 
 ```
-IMAP Accounts → IMAP IDLE Listeners → Email Parser → Elasticsearch Index
+IMAP Accounts → Email Parser → AI Categorizer → Email Storage
                                                       ↓
-AI Categorizer ← LLM API ← Email Content
-     ↓
-Slack/Webhook Triggers (for "Interested" emails)
-     ↓
-Qdrant Vector Store ← Email Embeddings ← LLM Embeddings API
-     ↓
-RAG Reply Generator → Express API → React Frontend
+Slack/Webhook Triggers (for "Interested" emails) ← Category Analysis
+                                                      ↓
+Express API → React Frontend → Real-time WebSocket Updates
+                                                      ↓
+Analytics Dashboard ← Email Statistics ← Advanced Filtering
 ```
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Node.js + TypeScript + Express
-- **Database**: Elasticsearch (search) + Qdrant (vectors)
-- **AI**: OpenAI-compatible LLM APIs
+- **Backend**: Node.js + Express
 - **Frontend**: React + Tailwind CSS
-- **Infrastructure**: Docker Compose
-- **Integrations**: Slack Webhooks + Generic Webhooks
+- **AI**: Groq API (OpenAI-compatible)
+- **Email**: IMAP protocol for Gmail integration
+- **Real-time**: WebSocket for live updates
+- **Integrations**: Slack Bot API + Generic Webhooks
+- **UI/UX**: Modern responsive design with animations
 
 ## 📋 Prerequisites
 
 - Node.js 18+ and npm
-- Docker and Docker Compose
-- IMAP email accounts with app passwords
-- OpenAI API key (or compatible LLM service)
-- Optional: Slack webhook URL (for notifications)
+- Gmail account with App Password (optional)
+- Optional: Slack Bot Token and Channel ID
+- Optional: Webhook URL for notifications
 
 ## 🚀 Quick Start
 
 ### 1. Clone and Setup
 
 ```bash
-git clone <your-private-repo-url>
+git clone <your-repo-url>
 cd reachinbox-onebox
 cp env.example .env
 ```
 
 ### 2. Configure Environment
 
-Edit `.env` with your actual values:
-
-```env
-# Server Configuration
-PORT=4000
-ES_URL=http://localhost:9200
-QDRANT_URL=http://localhost:6333
-
-# LLM API Configuration
-LLM_API_KEY=sk-your-openai-api-key-here
-LLM_API_URL=https://api.openai.com/v1/completions
-LLM_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-
-# IMAP Account 1
-IMAP_ACCOUNT_1_USER=your-email1@example.com
-IMAP_ACCOUNT_1_PASS=your-app-password-1
-IMAP_ACCOUNT_1_HOST=imap.gmail.com
-
-# IMAP Account 2
-IMAP_ACCOUNT_2_USER=your-email2@example.com
-IMAP_ACCOUNT_2_PASS=your-app-password-2
-IMAP_ACCOUNT_2_HOST=imap.gmail.com
-
-# Integrations (Optional)
-# Optional: Slack notifications (uncomment to enable)
-# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
-```
+Edit `.env` with your actual values (see Step 2 above).
 
 ### 3. Start Services
 
-#### Option A: Full Production Setup (with Docker)
-```bash
-# Start Elasticsearch and Qdrant
-docker-compose up -d
-
-# Install dependencies
-npm install
-
-# Build and start the application
-npm run build
-npm start
-```
-
-#### Option B: Demo Mode (No Docker Required)
 ```bash
 # Install dependencies
 npm install
 
-# Start the advanced demo server
-npm run advanced
-# OR
+# Start the advanced server
 node server-advanced.js
 ```
 
@@ -368,9 +360,7 @@ node server-advanced.js
 
 - **Frontend**: http://localhost:4000
 - **API Health**: http://localhost:4000/health
-- **WebSocket**: ws://localhost:8080 (for real-time updates)
-- **Elasticsearch**: http://localhost:9200 (if using Docker)
-- **Qdrant**: http://localhost:6333 (if using Docker)
+- **WebSocket**: ws://localhost:8080
 
 ## 🌐 GitHub Deployment Instructions
 
@@ -387,7 +377,7 @@ node server-advanced.js
    # Install dependencies
    npm install
    
-   # Start the advanced demo server
+   # Start the advanced server
    node server-advanced.js
    ```
 
@@ -397,30 +387,12 @@ node server-advanced.js
 
 4. **Test Key Features**
    - Search emails using the search bar
-   - Filter by categories (Interested, Meeting Booked, etc.)
+   - Filter by categories (20+ options available)
    - Click "Suggest Reply" on any email
-   - Click "Analytics" to see the dashboard
+   - Click "Analytics" to see the visual dashboard
    - Click "Export CSV" to test export functionality
-   - Click "Test Integrations" to see real-time notifications
-
-### For Full Production Setup:
-
-1. **Set up Docker Services**
-   ```bash
-   docker-compose up -d
-   ```
-
-2. **Configure Environment Variables**
-   ```bash
-   cp env.example .env
-   # Edit .env with your actual IMAP credentials and API keys
-   ```
-
-3. **Start Production Server**
-   ```bash
-   npm run build
-   npm start
-   ```
+   - Test the theme toggle (bottom-left corner)
+   - Try adding a Gmail account via the UI
 
 ## 📱 Application Features Demo
 
@@ -428,31 +400,44 @@ node server-advanced.js
 - WebSocket connection status indicator (top-right)
 - Live notifications for actions
 - Real-time email updates
+- Account switching with automatic filtering
 
 ### **AI-Powered Analytics**
 - Lead scoring (0-100 scale)
 - Sentiment analysis (positive/negative/neutral)
 - Priority classification (urgent/high/medium/low)
-- Response time tracking
+- Visual charts with donut graphs and progress bars
+- Category distribution analysis
 
 ### **Advanced Search & Filtering**
 - Natural language search
-- Multi-criteria filtering (category, priority, sentiment)
-- Priority-based sorting
+- 20+ category filters (Interested, Social, Job, Newsletter, etc.)
+- Priority-based filtering (Urgent, High, Medium, Low)
+- Sentiment-based filtering (Positive, Negative, Neutral)
 - Date range filtering
+- Account-specific filtering
 
 ### **Email Management**
-- AI-generated reply suggestions
+- AI-generated reply suggestions using Groq API
 - Email composer with AI assistance
-- Export functionality (CSV/JSON)
+- Smart export functionality with confirmation dialogs
 - Bulk operations
+- Real-time reply sending via SMTP
 
 ### **Modern UI/UX**
 - Responsive design (mobile-friendly)
-- Gradient header design
-- Hover animations
-- Toast notifications
+- Gradient header design with glassmorphism effects
+- Dark/Light theme toggle
+- Hover animations and smooth transitions
+- Toast notifications with positioning
 - Floating action buttons
+- Sticky header with scroll effects
+
+### **Integrations**
+- Slack Bot API for real-time notifications
+- Generic Webhook support for custom integrations
+- Automatic triggers for "Interested" emails
+- Rich message formatting
 
 ## 🛠️ Available Scripts
 
@@ -478,57 +463,76 @@ npm run lint        # Run ESLint
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/accounts` | Get configured IMAP accounts |
-| `GET` | `/api/emails/search` | Search emails with filters |
+| `GET` | `/api/accounts` | Get configured Gmail accounts |
+| `GET` | `/api/emails/search` | Search emails with advanced filters |
 | `GET` | `/api/emails/:id` | Get specific email by ID |
 | `POST` | `/api/emails/:id/suggest-reply` | Generate AI reply suggestion |
-| `GET` | `/api/stats` | Get email statistics |
+| `POST` | `/api/emails/compose` | Send email reply |
+| `GET` | `/api/emails/export` | Export emails to CSV |
+| `GET` | `/api/stats` | Get email statistics and analytics |
+| `POST` | `/api/gmail-accounts` | Add new Gmail account |
+| `DELETE` | `/api/gmail-accounts/:id` | Delete Gmail account |
 | `POST` | `/api/test-integrations` | Test Slack/webhook integrations |
+| `POST` | `/api/emails/recategorize` | Recategorize all emails with improved AI |
 
 ### Search Parameters
 
 ```
-GET /api/emails/search?q=query&account=account_1&category=Interested&page=0&size=20
+GET /api/emails/search?q=query&account=account_1&category=Interested&priority=high&sentiment=positive&page=0&size=20
 ```
 
 - `q`: Search query (searches subject, body, from)
 - `account`: Filter by account ID
-- `category`: Filter by AI category
+- `category`: Filter by AI category (20+ options)
+- `priority`: Filter by priority (urgent/high/medium/low)
+- `sentiment`: Filter by sentiment (positive/negative/neutral)
 - `page`: Page number (0-based)
 - `size`: Results per page
 
 ## 🎯 Features Implemented
 
 ### ✅ Phase 0-1: Core Infrastructure
-- [x] Docker Compose setup (Elasticsearch + Qdrant)
-- [x] TypeScript project structure
+- [x] Node.js + Express server setup
 - [x] Environment configuration
 - [x] Health check endpoints
+- [x] WebSocket integration
 
 ### ✅ Phase 2-3: Email Processing
-- [x] IMAP IDLE persistent connections
-- [x] Multi-account support
-- [x] Email parsing and indexing
-- [x] Elasticsearch search and filtering
+- [x] IMAP connections for Gmail
+- [x] Multi-account support with UI management
+- [x] Email parsing and storage
+- [x] Real-time email fetching (200+ emails per account)
 
 ### ✅ Phase 4: AI Categorization
-- [x] LLM-based email categorization
-- [x] 5-category classification system
+- [x] LLM-based email categorization with 20+ categories
+- [x] Enhanced categorization patterns
 - [x] Background processing
 - [x] Category-based filtering
 
 ### ✅ Phase 5: Integrations
-- [x] Optional Slack webhook notifications
+- [x] Slack Bot API notifications
+- [x] Generic Webhook support
 - [x] "Interested" lead triggers
 - [x] Rich message formatting
 
-### ✅ Phase 6: RAG & Frontend
-- [x] Qdrant vector storage
-- [x] Email embedding generation
-- [x] Similar email retrieval
-- [x] AI reply suggestions
-- [x] React frontend with search
+### ✅ Phase 6: Advanced Frontend
+- [x] Modern responsive UI with Tailwind CSS
+- [x] Advanced search and filtering
+- [x] Visual analytics dashboard
+- [x] Export functionality with confirmation dialogs
+- [x] Theme toggle (dark/light mode)
 - [x] Real-time email management
+- [x] Account management with validation
+
+### ✅ Phase 7: Enhanced Features
+- [x] AI reply suggestions using Groq API
+- [x] Real-time reply sending via SMTP
+- [x] Advanced analytics with visual charts
+- [x] Smart export with filtering
+- [x] Account switching with automatic filtering
+- [x] Modern UI/UX with glassmorphism effects
+- [x] Toast notifications with positioning
+- [x] Sticky header with scroll effects
 
 ## 🧪 Testing & Demo
 
@@ -536,29 +540,34 @@ GET /api/emails/search?q=query&account=account_1&category=Interested&page=0&size
 
 1. **Start Services**
    ```bash
-   docker-compose up -d
-   npm run dev
+   node server-advanced.js
    ```
 
-2. **Test IMAP Connection**
-   - Send test email to configured account
-   - Verify email appears in frontend within seconds
-   - Check Elasticsearch index: `GET http://localhost:9200/emails/_search`
+2. **Test Gmail Integration**
+   - Add Gmail account via UI
+   - Verify credential validation
+   - Check email fetching (200+ emails)
+   - Test account switching
 
 3. **Test AI Categorization**
-   - Send email with "interested" keywords
-   - Verify category is set to "Interested"
-   - Check optional Slack notifications
+   - Verify 20+ categories are working
+   - Check category filtering
+   - Test analytics dashboard
 
 4. **Test Search & Filtering**
    - Use frontend search functionality
-   - Test category filters
-   - Test account-specific searches
+   - Test all filter types (category, priority, sentiment, date)
+   - Test export functionality
 
-5. **Test Reply Suggestions**
+5. **Test AI Features**
    - Click "Suggest Reply" on any email
    - Verify AI-generated response
-   - Test copy-to-clipboard functionality
+   - Test reply sending functionality
+
+6. **Test Integrations**
+   - Test Slack notifications (if configured)
+   - Test Webhook triggers (if configured)
+   - Verify "Interested" email triggers
 
 ### Postman Collection
 
@@ -602,6 +611,22 @@ Import the following endpoints for API testing:
         "header": [{"key": "Content-Type", "value": "application/json"}],
         "url": "http://localhost:4000/api/emails/EMAIL_ID/suggest-reply"
       }
+    },
+    {
+      "name": "Export Emails",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:4000/api/emails/export?format=csv&category=Interested"
+      }
+    },
+    {
+      "name": "Get Analytics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:4000/api/stats"
+      }
     }
   ]
 }
@@ -614,28 +639,26 @@ Import the following endpoints for API testing:
 ```
 reachinbox-onebox/
 ├── src/
-│   ├── server.ts          # Express server & API routes
-│   ├── imapClient.ts      # IMAP IDLE listeners
-│   ├── indexer.ts         # Elasticsearch operations
-│   ├── categorizer.ts     # AI categorization & LLM calls
-│   ├── integrations.ts   # Optional Slack triggers
-│   └── rag.ts            # Qdrant & RAG implementation
+│   ├── integrations.ts     # Slack & Webhook integrations
+│   ├── accounts.json       # Gmail accounts storage
+│   └── categorizer.ts      # AI categorization logic
 ├── public/
-│   └── index.html        # React frontend
-├── docker-compose.yml    # Elasticsearch + Qdrant
-├── package.json          # Dependencies & scripts
-├── tsconfig.json         # TypeScript configuration
-└── env.example           # Environment template
+│   ├── index.html         # Main React frontend
+│   ├── login.html         # Login page
+│   └── signup.html        # Signup page
+├── server-advanced.js     # Main server (RECOMMENDED)
+├── server-real-gmail.js   # Alternative server
+├── package.json           # Dependencies & scripts
+├── env.example            # Environment template
+└── README.md              # This file
 ```
 
 ### Available Scripts
 
 ```bash
-npm run dev      # Start development server with ts-node
-npm run build    # Compile TypeScript to JavaScript
-npm start        # Start production server
-npm test         # Run tests (when implemented)
-npm run lint     # Run ESLint
+node server-advanced.js    # Start advanced server (RECOMMENDED)
+node server-real-gmail.js  # Start alternative server
+npm install                # Install dependencies
 ```
 
 ### Environment Variables
@@ -643,15 +666,14 @@ npm run lint     # Run ESLint
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `PORT` | Server port | No (default: 4000) |
-| `ES_URL` | Elasticsearch URL | No (default: localhost:9200) |
-| `QDRANT_URL` | Qdrant URL | No (default: localhost:6333) |
-| `LLM_API_KEY` | OpenAI API key | Yes |
-| `LLM_API_URL` | LLM completions endpoint | Yes |
-| `LLM_EMBEDDINGS_URL` | Embeddings endpoint | Yes |
-| `IMAP_ACCOUNT_*_USER` | IMAP username | Yes |
-| `IMAP_ACCOUNT_*_PASS` | IMAP password | Yes |
-| `IMAP_ACCOUNT_*_HOST` | IMAP host | Yes |
-| `SLACK_WEBHOOK_URL` | Slack webhook (optional) | No |
+| `LLM_API_KEY` | Groq API key | Yes (pre-configured) |
+| `LLM_API_URL` | LLM completions endpoint | Yes (pre-configured) |
+| `LLM_EMBEDDINGS_URL` | Embeddings endpoint | Yes (pre-configured) |
+| `SLACK_BOT_TOKEN` | Slack Bot Token | No (optional) |
+| `SLACK_CHANNEL_ID` | Slack Channel ID | No (optional) |
+| `WEBHOOK_URL` | Webhook URL | No (optional) |
+| `IMAP_ACCOUNT_*_USER` | Gmail username | No (can add via UI) |
+| `IMAP_ACCOUNT_*_PASS` | Gmail app password | No (can add via UI) |
 
 ## 🚨 Troubleshooting
 
@@ -673,45 +695,39 @@ npm run lint     # Run ESLint
    ```bash
    # Install all dependencies
    npm install
-   
-   # Install missing WebSocket dependency
-   npm install ws
    ```
 
-3. **IMAP Connection Failed** (Production Mode)
+3. **Gmail Connection Failed**
    - Verify app passwords are enabled
-   - Check IMAP settings in email provider
-   - Ensure firewall allows IMAP connections
+   - Check 2-Factor Authentication is enabled
+   - Use the UI to add accounts instead of .env
 
-4. **Elasticsearch Not Starting** (Production Mode)
-   - Check Docker is running
-   - Verify port 9200 is available
-   - Check Docker logs: `docker-compose logs elasticsearch`
-
-5. **LLM API Errors** (Production Mode)
-   - Verify API key is valid
-   - Check API endpoint URLs
+4. **AI Features Not Working**
+   - Check Groq API key is valid
+   - Verify API endpoint URLs
    - Monitor rate limits and quotas
 
-6. **Frontend Not Loading**
+5. **Frontend Not Loading**
    - Ensure server is running on port 4000
    - Check browser console for errors
    - Verify CORS settings
+
+6. **Slack/Webhook Not Working**
+   - Verify tokens and URLs are correct
+   - Check Slack channel permissions
+   - Test with the "Test Integrations" button
 
 ### Logs and Monitoring
 
 ```bash
 # View application logs
-npm run dev
+node server-advanced.js
 
-# View Docker service logs
-docker-compose logs -f
+# Check server health
+curl http://localhost:4000/health
 
-# Check Elasticsearch health
-curl http://localhost:9200/_cluster/health
-
-# Check Qdrant status
-curl http://localhost:6333/collections
+# Test API endpoints
+curl http://localhost:4000/api/stats
 ```
 
 ## 🔒 Security Considerations
@@ -721,20 +737,10 @@ curl http://localhost:6333/collections
 - Implement rate limiting for API endpoints
 - Add authentication for production deployments
 - Encrypt sensitive data in transit and at rest
+- Validate all user inputs
+- Use HTTPS in production
 
 ## 🚀 Production Deployment
-
-### Docker Production Setup
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist ./dist
-EXPOSE 4000
-CMD ["npm", "start"]
-```
 
 ### Environment Security
 
@@ -742,14 +748,16 @@ CMD ["npm", "start"]
 - Enable SSL/TLS for all connections
 - Implement proper logging and monitoring
 - Set up health checks and alerting
+- Use environment-specific configurations
 
 ## 📈 Performance Optimization
 
 - Implement email deduplication by message-id
 - Add caching for frequent searches
-- Optimize Elasticsearch queries with proper indexing
 - Use connection pooling for database connections
 - Implement background job queues for heavy processing
+- Optimize frontend bundle size
+- Use CDN for static assets
 
 ## 🤝 Contributing
 
@@ -774,3 +782,24 @@ For issues and questions:
 ---
 
 **Built with ❤️ by the ReachInbox Team**
+
+## 🎉 Recent Updates
+
+### Version 2.0 - Advanced Features
+- ✅ **20+ AI Categories** - Enhanced categorization with comprehensive patterns
+- ✅ **Visual Analytics Dashboard** - Donut charts and progress bars
+- ✅ **Smart Export System** - Confirmation dialogs and filtering
+- ✅ **Real-time Notifications** - Slack Bot API and Webhook integrations
+- ✅ **Modern UI/UX** - Glassmorphism effects and theme toggle
+- ✅ **Account Management** - UI-based Gmail account addition with validation
+- ✅ **Advanced Filtering** - Priority, sentiment, and date-based filtering
+- ✅ **AI Reply Suggestions** - Groq API integration for intelligent responses
+- ✅ **Responsive Design** - Mobile-friendly interface with animations
+- ✅ **Real-time Updates** - WebSocket integration for live data
+
+### Version 1.0 - Core Features
+- ✅ **Basic Email Management** - IMAP integration and email fetching
+- ✅ **AI Categorization** - 5-category classification system
+- ✅ **Search & Filter** - Basic search and filtering capabilities
+- ✅ **Export Functionality** - CSV export with basic filtering
+- ✅ **React Frontend** - Modern UI with Tailwind CSS

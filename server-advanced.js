@@ -70,6 +70,95 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Login page route
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Signup page route
+app.get('/signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+});
+
+// Login API endpoint
+app.post('/api/login', (req, res) => {
+  const { email, password, remember } = req.body;
+  
+  // Simple validation (replace with actual authentication logic)
+  if (email && password) {
+    // For demo purposes, accept any email/password combination
+    const token = 'demo-token-' + Date.now();
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token: token,
+      user: {
+        email: email,
+        name: email.split('@')[0]
+      }
+    });
+  } else {
+    res.status(400).json({
+      success: false,
+      message: 'Email and password are required'
+    });
+  }
+});
+
+// Signup API endpoint
+app.post('/api/signup', (req, res) => {
+  const { fullName, email, password, confirmPassword } = req.body;
+  
+  // Validation
+  if (!fullName || !email || !password || !confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'All fields are required'
+    });
+  }
+  
+  if (password !== confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Passwords do not match'
+    });
+  }
+  
+  if (password.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 8 characters long'
+    });
+  }
+  
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please enter a valid email address'
+    });
+  }
+  
+  // For demo purposes, always succeed
+  // In production, you would:
+  // 1. Check if email already exists
+  // 2. Hash the password
+  // 3. Store user in database
+  // 4. Send verification email
+  
+  res.json({
+    success: true,
+    message: 'Account created successfully',
+    user: {
+      fullName: fullName,
+      email: email,
+      id: 'user-' + Date.now()
+    }
+  });
+});
+
 // Gmail account management
 // Load accounts from file
 let gmailAccounts = [];
@@ -81,6 +170,62 @@ try {
     const data = fs.readFileSync(accountsFile, 'utf8');
     gmailAccounts = JSON.parse(data);
     console.log(`📧 Loaded ${gmailAccounts.length} Gmail accounts from storage`);
+    
+    // Validate existing accounts on startup (async)
+    if (gmailAccounts.length > 0) {
+      console.log('🔍 Validating existing Gmail accounts...');
+      
+      // Run validation asynchronously to not block server startup
+      (async () => {
+        const validAccounts = [];
+        
+        for (const account of gmailAccounts) {
+          try {
+            console.log(`🔍 Testing credentials for ${account.email}...`);
+            
+            const testConnection = await new Promise((resolve, reject) => {
+              const Imap = require('imap');
+              const testImap = new Imap({
+                user: account.email,
+                password: account.appPassword,
+                host: 'imap.gmail.com',
+                port: 993,
+                tls: true,
+                tlsOptions: { rejectUnauthorized: false },
+                connTimeout: 5000, // 5 second timeout for startup validation
+                authTimeout: 5000
+              });
+
+              testImap.once('ready', () => {
+                console.log(`✅ Account ${account.email} is valid`);
+                testImap.end();
+                resolve(true);
+              });
+
+              testImap.once('error', (err) => {
+                console.log(`❌ Account ${account.email} is invalid:`, err.message);
+                testImap.end();
+                reject(err);
+              });
+
+              testImap.connect();
+            });
+            
+            validAccounts.push(account);
+            
+          } catch (error) {
+            console.log(`❌ Removing invalid account: ${account.email}`);
+          }
+        }
+        
+        // Update accounts list with only valid ones
+        if (validAccounts.length !== gmailAccounts.length) {
+          gmailAccounts = validAccounts;
+          saveAccounts();
+          console.log(`🧹 Cleaned up accounts. ${validAccounts.length} valid accounts remaining.`);
+        }
+      })();
+    }
   }
 } catch (error) {
   console.error('Error loading accounts:', error);
@@ -104,7 +249,7 @@ app.get('/api/gmail-accounts', (req, res) => {
 });
 
 // Add new Gmail account
-app.post('/api/gmail-accounts', (req, res) => {
+app.post('/api/gmail-accounts', async (req, res) => {
   const { name, email, appPassword } = req.body;
   
   if (!name || !email || !appPassword) {
@@ -117,31 +262,98 @@ app.post('/api/gmail-accounts', (req, res) => {
     return res.status(400).json({ error: 'Invalid email format' });
   }
   
+  // Validate Gmail domain
+  if (!email.toLowerCase().includes('@gmail.com')) {
+    return res.status(400).json({ error: 'Please use a Gmail email address' });
+  }
+  
+  // Validate app password format (should be 16 characters without spaces)
+  const cleanAppPassword = appPassword.replace(/\s/g, '');
+  if (cleanAppPassword.length !== 16) {
+    return res.status(400).json({ error: 'App password must be 16 characters long (without spaces)' });
+  }
+  
   // Check if account already exists
   const existingAccount = gmailAccounts.find(acc => acc.email === email);
   if (existingAccount) {
     return res.status(400).json({ error: 'Gmail account already exists' });
   }
   
-  const newAccount = {
-    id: Date.now().toString(),
-    name,
-    email,
-    appPassword, // In production, this should be encrypted
-    createdAt: new Date().toISOString(),
-    status: 'active'
-  };
-  
-  gmailAccounts.push(newAccount);
-  
-  // Save accounts to file
-  saveAccounts();
-  
-  res.json({
-    success: true,
-    message: 'Gmail account added successfully',
-    account: newAccount
-  });
+  try {
+    // Test IMAP connection with provided credentials
+    console.log(`🔍 Testing Gmail credentials for ${email}...`);
+    
+    const testConnection = await new Promise((resolve, reject) => {
+      const Imap = require('imap');
+      const testImap = new Imap({
+        user: email,
+        password: cleanAppPassword,
+        host: 'imap.gmail.com',
+        port: 993,
+        tls: true,
+        tlsOptions: { rejectUnauthorized: false },
+        connTimeout: 10000, // 10 second connection timeout
+        authTimeout: 10000  // 10 second auth timeout
+      });
+
+      testImap.once('ready', () => {
+        console.log(`✅ Gmail credentials validated for ${email}`);
+        testImap.end();
+        resolve(true);
+      });
+
+      testImap.once('error', (err) => {
+        console.error(`❌ Gmail credential validation failed for ${email}:`, err.message);
+        testImap.end();
+        reject(err);
+      });
+
+      testImap.connect();
+    });
+    
+    // If we reach here, credentials are valid
+    const newAccount = {
+      id: Date.now().toString(),
+      name,
+      email,
+      appPassword: cleanAppPassword, // In production, this should be encrypted
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+    
+    gmailAccounts.push(newAccount);
+    
+    // Save accounts to file
+    saveAccounts();
+    
+    console.log(`✅ Gmail account ${email} added successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Gmail account added successfully! Credentials validated.',
+      account: newAccount
+    });
+    
+  } catch (error) {
+    console.error(`❌ Gmail credential validation failed:`, error.message);
+    
+    let errorMessage = 'Failed to validate Gmail credentials. ';
+    
+    if (error.message.includes('Invalid credentials') || error.message.includes('authentication failed')) {
+      errorMessage += 'Please check your email and app password. Make sure you have enabled 2-factor authentication and generated an app password.';
+    } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+      errorMessage += 'Network connection failed. Please check your internet connection.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage += 'Connection timed out. Please try again.';
+    } else {
+      errorMessage += `Error: ${error.message}`;
+    }
+    
+    res.status(400).json({ 
+      success: false, 
+      error: errorMessage
+    });
+  }
 });
 
 // Test Gmail connection
@@ -223,7 +435,7 @@ async function fetchGmailEmails(account) {
           return;
         }
 
-        // Search for all emails (we'll limit to 50 most recent)
+        // Search for all emails (we'll limit to 200 most recent)
         imap.search(['ALL'], (err, results) => {
           if (err) {
             reject(err);
@@ -236,8 +448,9 @@ async function fetchGmailEmails(account) {
             return;
           }
 
-          // Limit to 50 most recent emails for better coverage
-          const limitedResults = results.slice(-50);
+          // Limit to 200 most recent emails for better coverage
+          const limitedResults = results.slice(-200);
+          console.log(`📊 Found ${results.length} total emails, processing ${limitedResults.length} most recent`);
           const fetch = imap.fetch(limitedResults, { bodies: '' });
           let processedCount = 0;
 
@@ -255,7 +468,7 @@ async function fetchGmailEmails(account) {
                 if (err) {
                   console.error('Parse error:', err);
                   processedCount++;
-                  if (processedCount === results.length) {
+                  if (processedCount === limitedResults.length) {
                     imap.end();
                     resolve(emails);
                   }
@@ -472,87 +685,242 @@ function performEmailAnalysis(parsedEmail) {
   const body = (parsedEmail.text || parsedEmail.html || '').toLowerCase();
   const from = (parsedEmail.from?.text || '').toLowerCase();
   
-  let category = 'Uncategorized';
+  let category = 'General';
   let priority = 'medium';
   let sentiment = 'neutral';
   let leadScore = 50;
 
-  // Enhanced category analysis with more patterns
+  // Check sender domain patterns first
+  const senderDomain = from.split('@')[1] || '';
+  if (senderDomain.includes('noreply') || senderDomain.includes('no-reply') || 
+      senderDomain.includes('donotreply') || from.includes('noreply')) {
+    category = 'Automated';
+    priority = 'low';
+    leadScore = 20;
+  } else if (senderDomain.includes('linkedin') || senderDomain.includes('facebook') || 
+             senderDomain.includes('twitter') || senderDomain.includes('instagram')) {
+    category = 'Social';
+    priority = 'low';
+    leadScore = 30;
+  } else if (senderDomain.includes('github') || senderDomain.includes('stackoverflow') || 
+             senderDomain.includes('dev') || senderDomain.includes('tech')) {
+    category = 'Tech';
+    priority = 'medium';
+    leadScore = 60;
+  }
+
+  // Enhanced category analysis with comprehensive patterns
   if (subject.includes('interested') || subject.includes('demo') || subject.includes('pricing') || 
       subject.includes('quote') || subject.includes('proposal') || subject.includes('partnership') ||
+      subject.includes('collaboration') || subject.includes('opportunity') || subject.includes('inquiry') ||
       body.includes('interested') || body.includes('demo') || body.includes('pricing') ||
-      body.includes('collaborate') || body.includes('partnership') || body.includes('opportunity')) {
+      body.includes('collaborate') || body.includes('partnership') || body.includes('opportunity') ||
+      body.includes('would like to') || body.includes('looking for') || body.includes('need help')) {
     category = 'Interested';
     priority = 'high';
     sentiment = 'positive';
     leadScore = 85;
   } else if (subject.includes('meeting') || subject.includes('call') || subject.includes('schedule') ||
-             subject.includes('appointment') || subject.includes('conference') || subject.includes('zoom')) {
+             subject.includes('appointment') || subject.includes('conference') || subject.includes('zoom') ||
+             subject.includes('teams') || subject.includes('calendar') || subject.includes('availability')) {
     category = 'Meeting';
     priority = 'high';
     sentiment = 'positive';
     leadScore = 80;
   } else if (subject.includes('urgent') || subject.includes('asap') || subject.includes('immediately') ||
-             subject.includes('emergency') || subject.includes('critical') || subject.includes('important')) {
+             subject.includes('emergency') || subject.includes('critical') || subject.includes('important') ||
+             subject.includes('deadline') || subject.includes('expires') || subject.includes('time sensitive')) {
     category = 'Urgent';
     priority = 'urgent';
     sentiment = 'neutral';
     leadScore = 90;
   } else if (subject.includes('complaint') || subject.includes('issue') || subject.includes('problem') ||
-             subject.includes('refund') || subject.includes('cancel') || subject.includes('disappointed')) {
+             subject.includes('refund') || subject.includes('cancel') || subject.includes('disappointed') ||
+             subject.includes('unhappy') || subject.includes('dissatisfied') || subject.includes('concern')) {
     category = 'Complaint';
     priority = 'high';
     sentiment = 'negative';
     leadScore = 70;
   } else if (subject.includes('newsletter') || subject.includes('unsubscribe') || subject.includes('marketing') ||
-             subject.includes('promotion') || subject.includes('sale') || subject.includes('offer')) {
+             subject.includes('promotion') || subject.includes('sale') || subject.includes('offer') ||
+             subject.includes('discount') || subject.includes('deal') || subject.includes('special')) {
     category = 'Newsletter';
     priority = 'low';
     sentiment = 'neutral';
     leadScore = 20;
   } else if (subject.includes('invoice') || subject.includes('payment') || subject.includes('billing') ||
-             subject.includes('receipt') || subject.includes('transaction') || subject.includes('money')) {
+             subject.includes('receipt') || subject.includes('transaction') || subject.includes('money') ||
+             subject.includes('payment due') || subject.includes('overdue') || subject.includes('statement')) {
     category = 'Billing';
     priority = 'medium';
     sentiment = 'neutral';
     leadScore = 40;
   } else if (subject.includes('job') || subject.includes('career') || subject.includes('hiring') ||
-             subject.includes('resume') || subject.includes('interview') || subject.includes('position')) {
+             subject.includes('resume') || subject.includes('interview') || subject.includes('position') ||
+             subject.includes('employment') || subject.includes('recruitment') || subject.includes('candidate')) {
     category = 'Job';
     priority = 'medium';
     sentiment = 'positive';
     leadScore = 60;
   } else if (subject.includes('security') || subject.includes('login') || subject.includes('password') ||
-             subject.includes('verification') || subject.includes('alert') || subject.includes('access')) {
+             subject.includes('verification') || subject.includes('alert') || subject.includes('access') ||
+             subject.includes('suspicious') || subject.includes('breach') || subject.includes('unauthorized')) {
     category = 'Security';
     priority = 'high';
     sentiment = 'neutral';
     leadScore = 75;
   } else if (subject.includes('social') || subject.includes('linkedin') || subject.includes('facebook') ||
-             subject.includes('twitter') || subject.includes('instagram') || subject.includes('follow')) {
+             subject.includes('twitter') || subject.includes('instagram') || subject.includes('follow') ||
+             subject.includes('connection') || subject.includes('network') || subject.includes('profile')) {
     category = 'Social';
     priority = 'low';
     sentiment = 'neutral';
     leadScore = 30;
+  } else if (subject.includes('support') || subject.includes('help') || subject.includes('assistance') ||
+             subject.includes('question') || subject.includes('inquiry') || subject.includes('contact')) {
+    category = 'Support';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 55;
+  } else if (subject.includes('notification') || subject.includes('alert') || subject.includes('update') ||
+             subject.includes('reminder') || subject.includes('status') || subject.includes('progress')) {
+    category = 'Notification';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 45;
+  } else if (subject.includes('invitation') || subject.includes('invite') || subject.includes('join') ||
+             subject.includes('event') || subject.includes('celebration') || subject.includes('party')) {
+    category = 'Invitation';
+    priority = 'medium';
+    sentiment = 'positive';
+    leadScore = 50;
+  } else if (subject.includes('document') || subject.includes('attachment') || subject.includes('file') ||
+             subject.includes('report') || subject.includes('summary') || subject.includes('analysis')) {
+    category = 'Document';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 50;
+  } else if (subject.includes('thank') || subject.includes('appreciation') || subject.includes('grateful') ||
+             subject.includes('feedback') || subject.includes('review') || subject.includes('rating')) {
+    category = 'Feedback';
+    priority = 'medium';
+    sentiment = 'positive';
+    leadScore = 65;
+  } else if (subject.includes('travel') || subject.includes('flight') || subject.includes('hotel') ||
+             subject.includes('booking') || subject.includes('reservation') || subject.includes('trip')) {
+    category = 'Travel';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 40;
+  } else if (subject.includes('health') || subject.includes('medical') || subject.includes('doctor') ||
+             subject.includes('appointment') || subject.includes('prescription') || subject.includes('treatment')) {
+    category = 'Health';
+    priority = 'high';
+    sentiment = 'neutral';
+    leadScore = 70;
+  } else if (subject.includes('education') || subject.includes('course') || subject.includes('learning') ||
+             subject.includes('training') || subject.includes('workshop') || subject.includes('seminar')) {
+    category = 'Education';
+    priority = 'medium';
+    sentiment = 'positive';
+    leadScore = 60;
+  } else if (subject.includes('shopping') || subject.includes('order') || subject.includes('delivery') ||
+             subject.includes('shipping') || subject.includes('tracking') || subject.includes('package')) {
+    category = 'Shopping';
+    priority = 'medium';
+    sentiment = 'neutral';
+    leadScore = 40;
+  } else if (subject.includes('finance') || subject.includes('bank') || subject.includes('credit') ||
+             subject.includes('loan') || subject.includes('investment') || subject.includes('account')) {
+    category = 'Finance';
+    priority = 'high';
+    sentiment = 'neutral';
+    leadScore = 70;
+  } else if (subject.includes('entertainment') || subject.includes('movie') || subject.includes('music') ||
+             subject.includes('game') || subject.includes('streaming') || subject.includes('subscription')) {
+    category = 'Entertainment';
+    priority = 'low';
+    sentiment = 'positive';
+    leadScore = 30;
   }
 
-  // Sentiment analysis
-  const positiveWords = ['great', 'excellent', 'amazing', 'love', 'perfect', 'wonderful', 'fantastic'];
-  const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'disappointed', 'angry', 'frustrated'];
+  // Enhanced sentiment analysis with more comprehensive word lists
+  const positiveWords = ['great', 'excellent', 'amazing', 'love', 'perfect', 'wonderful', 'fantastic', 
+                        'awesome', 'brilliant', 'outstanding', 'superb', 'marvelous', 'delighted', 
+                        'pleased', 'satisfied', 'impressed', 'grateful', 'thankful', 'appreciate'];
+  const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'disappointed', 'angry', 'frustrated',
+                        'horrible', 'disgusting', 'annoying', 'irritating', 'upset', 'furious',
+                        'displeased', 'unsatisfied', 'regret', 'sorry', 'apologize', 'concerned'];
   
-  const positiveCount = positiveWords.filter(word => body.includes(word)).length;
-  const negativeCount = negativeWords.filter(word => body.includes(word)).length;
+  const positiveCount = positiveWords.filter(word => body.includes(word) || subject.includes(word)).length;
+  const negativeCount = negativeWords.filter(word => body.includes(word) || subject.includes(word)).length;
   
   if (positiveCount > negativeCount) {
     sentiment = 'positive';
-    leadScore = Math.min(100, leadScore + 10);
+    leadScore = Math.min(100, leadScore + 15);
   } else if (negativeCount > positiveCount) {
     sentiment = 'negative';
-    leadScore = Math.max(0, leadScore - 10);
+    leadScore = Math.max(0, leadScore - 15);
+  }
+
+  // Adjust priority based on content urgency
+  if (subject.includes('urgent') || subject.includes('asap') || subject.includes('emergency')) {
+    priority = 'urgent';
+  } else if (subject.includes('important') || subject.includes('priority') || subject.includes('high')) {
+    priority = 'high';
+  } else if (subject.includes('low') || subject.includes('optional') || subject.includes('when convenient')) {
+    priority = 'low';
   }
 
   return { category, priority, sentiment, leadScore };
 }
+
+// Recategorize existing emails endpoint
+app.post('/api/emails/recategorize', async (req, res) => {
+  try {
+    console.log('🔄 Starting email recategorization...');
+    let recategorizedCount = 0;
+    
+    gmailEmails.forEach(email => {
+      const originalCategory = email.aiCategory;
+      
+      // Re-analyze the email
+      const analysis = performEmailAnalysis({
+        subject: email.subject,
+        text: email.body,
+        from: { text: email.from }
+      });
+      
+      // Update the email with new analysis
+      email.aiCategory = analysis.category;
+      email.priority = analysis.priority;
+      email.sentiment = analysis.sentiment;
+      email.leadScore = analysis.leadScore;
+      
+      if (originalCategory !== analysis.category) {
+        recategorizedCount++;
+        console.log(`📧 Recategorized: "${email.subject}" from "${originalCategory}" to "${analysis.category}"`);
+      }
+    });
+    
+    console.log(`✅ Recategorization complete. ${recategorizedCount} emails updated.`);
+    
+    res.json({
+      success: true,
+      message: `Successfully recategorized ${recategorizedCount} emails`,
+      recategorizedCount,
+      totalEmails: gmailEmails.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Recategorization error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to recategorize emails',
+      message: error.message 
+    });
+  }
+});
 
 // Fetch emails from Gmail account endpoint
 app.post('/api/gmail-accounts/:id/fetch-emails', async (req, res) => {
@@ -870,9 +1238,12 @@ app.get('/api/emails/search', async (req, res) => {
     }
     
     if (account) {
+      console.log(`🔍 Filtering emails for account ID: ${account}`);
+      console.log(`📊 Total emails before filtering: ${filteredEmails.length}`);
       filteredEmails = filteredEmails.filter(email => 
         email._source.accountId === account
       );
+      console.log(`📊 Emails after account filtering: ${filteredEmails.length}`);
     }
     
     if (priority) {
@@ -980,14 +1351,37 @@ function getAverageLeadScore(emails) {
 // Export emails endpoint (must be before /api/emails/:id)
 app.get('/api/emails/export', async (req, res) => {
   try {
-    const { format = 'csv', category, dateFrom, dateTo } = req.query;
+    const { format = 'csv', category, dateFrom, dateTo, account, q } = req.query;
     
     let filteredEmails = [...gmailEmails];
+    
+    console.log(`🔍 Export request - account: ${account}, category: ${category}, q: ${q}`);
+    console.log(`📊 Total emails before filtering: ${filteredEmails.length}`);
+    
+    // Filter by account if specified
+    if (account) {
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.accountId === account
+      );
+      console.log(`📊 Emails after account filtering: ${filteredEmails.length}`);
+    }
+    
+    // Filter by search query if specified
+    if (q) {
+      const searchTerm = q.toLowerCase();
+      filteredEmails = filteredEmails.filter(email => 
+        email._source.subject.toLowerCase().includes(searchTerm) ||
+        email._source.from.toLowerCase().includes(searchTerm) ||
+        email._source.body.toLowerCase().includes(searchTerm)
+      );
+      console.log(`📊 Emails after search filtering: ${filteredEmails.length}`);
+    }
     
     if (category) {
       filteredEmails = filteredEmails.filter(email => 
         email._source.aiCategory === category
       );
+      console.log(`📊 Emails after category filtering: ${filteredEmails.length}`);
     }
     
     if (dateFrom) {
@@ -995,6 +1389,7 @@ app.get('/api/emails/export', async (req, res) => {
       filteredEmails = filteredEmails.filter(email => 
         new Date(email._source.date) >= fromDate
       );
+      console.log(`📊 Emails after dateFrom filtering: ${filteredEmails.length}`);
     }
     
     if (dateTo) {
@@ -1002,6 +1397,7 @@ app.get('/api/emails/export', async (req, res) => {
       filteredEmails = filteredEmails.filter(email => 
         new Date(email._source.date) <= toDate
       );
+      console.log(`📊 Emails after dateTo filtering: ${filteredEmails.length}`);
     }
     
     if (format === 'csv') {
