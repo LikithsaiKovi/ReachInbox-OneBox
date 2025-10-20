@@ -646,6 +646,15 @@
                     case 'integration_test':
                         addNotification('success', 'Integration test completed successfully');
                         break;
+                    case 'stats_updated': {
+                        // Live update total emails and related stats after add/remove/fetch
+                        setStats(prev => ({
+                            ...(prev || {}),
+                            totalEmails: typeof data.totalEmails === 'number' ? data.totalEmails : (prev?.totalEmails || 0),
+                            byAccount: data.byAccount || prev?.byAccount
+                        }));
+                        break;
+                    }
                 }
             };
 
@@ -898,9 +907,22 @@
                     });
                     
                     if (response.ok) {
+                        const result = await response.json().catch(() => ({}));
                         setGmailAccounts(prev => prev.filter(acc => acc.id !== accountId));
-                        addNotification('success', 'Gmail account removed successfully!');
-                        
+                        addNotification('success', result?.message || 'Gmail account removed successfully!');
+
+                        // If the removed account is currently selected, switch selection
+                        if (selectedAccount === accountId) {
+                            const remaining = accounts.filter(acc => acc.id !== accountId);
+                            setSelectedAccount(remaining.length > 0 ? remaining[0].id : '');
+                        }
+
+                        // Clear the current emails view since store has changed
+                        setEmails(prev => prev.filter(e => (e._source?.accountId || e.accountId) !== accountId));
+
+                        // Refresh stats from server for updated totals
+                        await fetchStats();
+
                         // Refresh accounts list to remove the Gmail account
                         fetchAccounts();
                     } else {

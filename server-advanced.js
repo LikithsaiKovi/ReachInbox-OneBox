@@ -403,12 +403,37 @@ app.delete('/api/gmail-accounts/:id', (req, res) => {
     return res.status(404).json({ error: 'Gmail account not found' });
   }
   
-  gmailAccounts.splice(accountIndex, 1);
+  // Remove the account
+  const removedAccount = gmailAccounts.splice(accountIndex, 1)[0];
   
+  // Purge all emails belonging to this account from in-memory store
+  const beforeCount = gmailEmails.length;
+  gmailEmails = gmailEmails.filter(email => email._source.accountId !== accountId);
+  const afterCount = gmailEmails.length;
+  const removedEmails = beforeCount - afterCount;
+
   // Save accounts to file
   saveAccounts();
+
+  // Broadcast updated stats to live clients
+  try {
+    const updatedStats = {
+      type: 'stats_updated',
+      totalEmails: gmailEmails.length,
+      byAccount: gmailAccounts.map(acc => ({
+        key: acc.id,
+        doc_count: gmailEmails.filter(e => e._source.accountId === acc.id).length
+      }))
+    };
+    broadcast(updatedStats);
+  } catch (_) {}
   
-  res.json({ success: true, message: 'Gmail account removed successfully' });
+  res.json({ 
+    success: true, 
+    message: `Gmail account removed successfully${removedAccount?.email ? `: ${removedAccount.email}` : ''}`,
+    removedEmails,
+    totalEmails: afterCount
+  });
 });
 
 // Fetch emails from Gmail account
@@ -939,12 +964,21 @@ app.post('/api/gmail-accounts/:id/fetch-emails', async (req, res) => {
     gmailEmails.push(...emails);
     
     console.log(`✅ Fetched ${emails.length} emails from ${account.email}`);
-    
-    res.json({
-      success: true,
-      message: `Fetched ${emails.length} emails successfully`,
-      emails: emails.length
+  
+  // Broadcast updated stats
+  try {
+    broadcast({
+      type: 'stats_updated',
+      totalEmails: gmailEmails.length
     });
+  } catch (_) {}
+
+  res.json({
+    success: true,
+    message: `Fetched ${emails.length} emails successfully`,
+    emails: emails.length,
+    totalEmails: gmailEmails.length
+  });
     
   } catch (error) {
     console.error('Gmail fetch error:', error);
