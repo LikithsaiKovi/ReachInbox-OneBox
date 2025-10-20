@@ -704,6 +704,16 @@
                 password: formData.get('password'),
                 confirmPassword: formData.get('confirmPassword')
             };
+            // Frontend pre-validation for standard Gmail format
+            const email = String(signupData.email || '').trim();
+            const gmailStrict = /^[a-z0-9](?:[a-z0-9.+_\-]{1,28})[a-z0-9]@gmail\.com$/i;
+            if (!gmailStrict.test(email)) {
+                showError('emailError', 'Please use a valid Gmail (3-30 chars before @, letters/numbers)');
+                buttonText.style.display = 'block';
+                loading.style.display = 'none';
+                signupBtn.disabled = false;
+                return;
+            }
             
             try {
                 // Simulate API call (replace with actual endpoint)

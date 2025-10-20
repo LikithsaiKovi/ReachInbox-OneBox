@@ -157,6 +157,19 @@ app.post('/api/signup', (req, res) => {
   if (!emailRegex.test(email)) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
   }
+  // Enforce Gmail and reasonable local-part (avoid obviously fake/random strings)
+  const emailLower = String(email).toLowerCase().trim();
+  const gmailStrict = /^[a-z0-9](?:[a-z0-9.+_\-]{1,28})[a-z0-9]@gmail\.com$/; // 3-30 chars local part, sane chars, starts/ends alnum
+  if (!gmailStrict.test(emailLower)) {
+    return res.status(400).json({ success: false, message: 'Please use a valid Gmail address (letters/numbers, no spaces, 3-30 chars before @)' });
+  }
+  const local = emailLower.split('@')[0];
+  if (!/[a-z]/.test(local)) {
+    return res.status(400).json({ success: false, message: 'Email local part must include letters, not only digits/symbols' });
+  }
+  if (/(.)\1{3,}/.test(local) || /\d{6,}/.test(local)) {
+    return res.status(400).json({ success: false, message: 'Email looks incorrect. Please provide a standard Gmail address.' });
+  }
   const gmailRegex = /^[A-Za-z0-9.+_\-]+@gmail\.com$/i;
   if (!gmailRegex.test(email)) {
     return res.status(400).json({ success: false, message: 'Only Gmail addresses are allowed (example@gmail.com)' });
