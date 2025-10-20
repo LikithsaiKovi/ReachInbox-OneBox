@@ -547,6 +547,14 @@
             const [loading, setLoading] = useState(false);
             const [stats, setStats] = useState(null);
             const [suggestedReply, setSuggestedReply] = useState('');
+            const [replyMethod, setReplyMethod] = useState('');
+            const [showRAGManager, setShowRAGManager] = useState(false);
+            const [ragAgenda, setRagAgenda] = useState({
+                content: '',
+                type: 'general',
+                meeting_link: '',
+                product_info: ''
+            });
             const [replyLoading, setReplyLoading] = useState(false);
             const [showComposer, setShowComposer] = useState(false);
             const [showAnalytics, setShowAnalytics] = useState(false);
@@ -681,6 +689,8 @@
                 body: ''
             });
             const [sendingReply, setSendingReply] = useState(false);
+            const [aiReplySuggestion, setAiReplySuggestion] = useState('');
+            const [generatingReply, setGeneratingReply] = useState(false);
             const [exportModalOpen, setExportModalOpen] = useState(false);
             const [pendingExportFormat, setPendingExportFormat] = useState('csv');
             const wsRef = useRef(null);
@@ -1089,11 +1099,59 @@
                     });
                     const data = await response.json();
                     setSuggestedReply(data.suggestion);
+                    setReplyMethod(data.method || 'fallback');
                 } catch (error) {
                     console.error('Error generating reply:', error);
                     addNotification('error', 'Error generating reply');
                 } finally {
                     setReplyLoading(false);
+                }
+            };
+
+            const storeRAGAgenda = async () => {
+                try {
+                    const response = await fetch('/api/recruiter/agenda', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(ragAgenda)
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        addNotification('success', 'Recruiter agenda stored successfully!');
+                        setRagAgenda({
+                            content: '',
+                            type: 'general',
+                            meeting_link: '',
+                            product_info: ''
+                        });
+                    } else {
+                        addNotification('error', 'Failed to store agenda');
+                    }
+                } catch (error) {
+                    console.error('Error storing agenda:', error);
+                    addNotification('error', 'Error storing agenda');
+                }
+            };
+
+            const initializeRAG = async () => {
+                try {
+                    const response = await fetch('/api/recruiter/init', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        addNotification('success', 'RAG system initialized successfully!');
+                    } else {
+                        addNotification('error', 'Failed to initialize RAG system');
+                    }
+                } catch (error) {
+                    console.error('Error initializing RAG:', error);
+                    addNotification('error', 'Error initializing RAG system');
                 }
             };
 
@@ -1132,6 +1190,32 @@
                 setReplyModalOpen(false);
                 setSelectedEmail(null);
                 setReplyData({ to: '', subject: '', body: '' });
+                setAiReplySuggestion('');
+            };
+
+            const generateAIReplyForModal = async () => {
+                if (!selectedEmail) return;
+                
+                setGeneratingReply(true);
+                try {
+                    const response = await fetch(`/api/emails/${selectedEmail._id || selectedEmail.id}/suggest-reply`, {
+                        method: 'POST'
+                    });
+                    
+        if (response.ok) {
+            const data = await response.json();
+            setAiReplySuggestion(data.suggestion || 'No suggestion available');
+            setReplyMethod(data.method || 'fallback');
+            addNotification('success', 'AI reply generated successfully! (fresh & contextual)');
+        } else {
+            addNotification('error', 'Failed to generate AI reply');
+        }
+                } catch (error) {
+                    console.error('Error generating AI reply:', error);
+                    addNotification('error', 'Error generating AI reply');
+                } finally {
+                    setGeneratingReply(false);
+                }
             };
 
             const handleSendReply = async () => {
@@ -2030,6 +2114,16 @@
                                         </svg>
                                         Analytics
                                     </button>
+                                    
+                                    <button
+                                        onClick={() => setShowRAGManager(true)}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                        </svg>
+                                        RAG Manager
+                                    </button>
                                 </div>
                                 
                                 <div className="flex space-x-2">
@@ -2066,11 +2160,11 @@
                                 </p>
                             </div>
                             
-                        {/* Email Detail Modal */}
+                        {/* Email Detail Modal - Enhanced with larger window */}
                         {emailModalOpen && selectedEmail && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-                                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl mx-4" style={{ top: `${modalTop}px` }}>
-                                    <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[88vh] overflow-hidden">
+                                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-7xl mx-4" style={{ top: `${modalTop}px` }}>
+                                    <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[95vh] overflow-hidden">
                                     {/* Header */}
                                     <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between">
                                         <div className="flex items-start gap-4">
@@ -2109,10 +2203,14 @@
                                         <button onClick={closeEmailModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
                                     </div>
 
-                                    {/* Body */}
-                                    <div className="px-6 py-5 overflow-y-auto max-h-[70vh]">
+                                    {/* Body - Enhanced with larger content area */}
+                                    <div className="px-6 py-5 overflow-y-auto max-h-[80vh]">
                                         <div className="mb-6">
-                                            {renderEmailBody(selectedEmail._source?.body || selectedEmail.body)}
+                                            <div className="bg-gray-50 border rounded-lg p-6">
+                                                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed font-mono text-sm max-w-none">
+                                                    {selectedEmail._source?.body || selectedEmail.body}
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Media previews */}
@@ -2225,7 +2323,16 @@
                                                 
                                                 {suggestedReply && (
                                                     <div className="mt-4 p-4 bg-blue-50 rounded-md">
-                                                        <h4 className="text-sm font-medium text-blue-900 mb-2">Suggested Reply:</h4>
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <h4 className="text-sm font-medium text-blue-900">Suggested Reply:</h4>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                                replyMethod === 'rag' 
+                                                                    ? 'bg-green-100 text-green-800' 
+                                                                    : 'bg-gray-100 text-gray-600'
+                                                            }`}>
+                                                                {replyMethod === 'rag' ? '🧠 RAG' : '📝 Fallback'}
+                                                            </span>
+                                                        </div>
                                                         <p className="text-sm text-blue-800">{suggestedReply}</p>
                                                     </div>
                                                 )}
@@ -2366,7 +2473,7 @@
 
                     {/* Reply Modal */}
                     {replyModalOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-8 pb-8">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-24 pb-8">
                             <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 shadow-2xl transform transition-all duration-300 ease-in-out animate-modalSlideIn">
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-semibold">Send Reply</h3>
@@ -2381,6 +2488,30 @@
                                 </div>
                                 
                                 <div className="space-y-4">
+                                    {/* AI Reply Suggestion Section */}
+        {aiReplySuggestion && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-blue-900">🤖 AI Reply Suggestion:</h4>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                            ✨ Fresh
+                        </span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                            {replyMethod === 'rag' ? '🧠 RAG' : '📝 Fallback'}
+                        </span>
+                        <button
+                            onClick={() => setReplyData(prev => ({ ...prev, body: aiReplySuggestion }))}
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            Use This
+                        </button>
+                    </div>
+                </div>
+                <p className="text-sm text-blue-800 whitespace-pre-wrap">{aiReplySuggestion}</p>
+            </div>
+        )}
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
                                         <input
@@ -2404,7 +2535,28 @@
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-sm font-medium text-gray-700">Message</label>
+                                            <button
+                                                onClick={generateAIReplyForModal}
+                                                disabled={generatingReply || !selectedEmail}
+                                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                                            >
+                                                {generatingReply ? (
+                                                    <>
+                                                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        Generating...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        🤖 Generate AI Reply
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                         <textarea
                                             value={replyData.body}
                                             onChange={(e) => setReplyData(prev => ({ ...prev, body: e.target.value }))}
@@ -2510,6 +2662,127 @@
 
                     {/* Analytics Modal */}
                     {showAnalytics && <AnalyticsDashboard />}
+
+                    {/* RAG Manager Modal */}
+                    {showRAGManager && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-blue-500">RAG Manager</h3>
+                                    <button
+                                        onClick={() => setShowRAGManager(false)}
+                                        className="text-gray-500 hover:text-gray-700"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-6">
+                                    {/* Initialize RAG */}
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <h4 className="text-lg font-medium mb-3">Initialize RAG System</h4>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Initialize the vector database for storing and retrieving recruiter agenda data.
+                                        </p>
+                                        <button
+                                            onClick={initializeRAG}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        >
+                                            Initialize RAG
+                                        </button>
+                                    </div>
+
+                                    {/* Store Agenda */}
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <h4 className="text-lg font-medium mb-3">Store Recruiter Agenda</h4>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Add your product information, meeting links, and outreach agenda to the vector database.
+                                        </p>
+                                        
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                                                <textarea
+                                                    value={ragAgenda.content}
+                                                    onChange={(e) => setRagAgenda({...ragAgenda, content: e.target.value})}
+                                                    placeholder="I am applying for a job position. If the lead is interested, share the meeting booking link: https://cal.com/example"
+                                                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    rows={3}
+                                                />
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                                    <select
+                                                        value={ragAgenda.type}
+                                                        onChange={(e) => setRagAgenda({...ragAgenda, type: e.target.value})}
+                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    >
+                                                        <option value="general">General</option>
+                                                        <option value="interview">Interview</option>
+                                                        <option value="followup">Follow-up</option>
+                                                        <option value="meeting">Meeting</option>
+                                                        <option value="rejection">Rejection</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                                                    <input
+                                                        type="url"
+                                                        value={ragAgenda.meeting_link}
+                                                        onChange={(e) => setRagAgenda({...ragAgenda, meeting_link: e.target.value})}
+                                                        placeholder="https://cal.com/example"
+                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Product Info</label>
+                                                <input
+                                                    type="text"
+                                                    value={ragAgenda.product_info}
+                                                    onChange={(e) => setRagAgenda({...ragAgenda, product_info: e.target.value})}
+                                                    placeholder="Software Engineer, 5 years experience, React/Node.js"
+                                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                            
+                                            <button
+                                                onClick={storeRAGAgenda}
+                                                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                            >
+                                                Store Agenda
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Example */}
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <h4 className="text-lg font-medium mb-3">Example Usage</h4>
+                                        <div className="text-sm text-gray-700 space-y-2">
+                                            <p><strong>Training Data:</strong> "I am applying for a job position. If the lead is interested, share the meeting booking link: https://cal.com/example"</p>
+                                            <p><strong>Email Received:</strong> "Hi, Your resume has been shortlisted. When will be a good time for you to attend the technical interview?"</p>
+                                            <p><strong>AI Reply Suggestion:</strong> "Thank you for shortlisting my profile! I'm available for a technical interview. You can book a slot here: https://cal.com/example"</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-end space-x-3 mt-6">
+                                    <button
+                                        onClick={() => setShowRAGManager(false)}
+                                        className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Enhanced Toast Notifications */}
                     <div className="fixed bottom-4 left-4 z-50 space-y-2 max-w-sm sm:max-w-md notification-container">
