@@ -2111,6 +2111,11 @@ app.post('/api/test-integrations', async (req, res) => {
   }
 });
 
+// Dashboard route - redirect to main app
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Serve React app for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
