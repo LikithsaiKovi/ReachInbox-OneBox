@@ -2131,9 +2131,10 @@ app.use((error, req, res, next) => {
 });
 
 // Start Express server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 ReachInbox Onebox Advanced Edition running on port ${PORT}`);
   console.log(`📧 Frontend available at: http://localhost:${PORT}`);
+  console.log(`🌐 Network access: http://YOUR_IP:${PORT} (for other devices on same network)`);
   console.log(`🔍 API endpoints available at: http://localhost:${PORT}/api/*`);
   console.log(`🌐 WebSocket server running on port 8080`);
   console.log(`\n📋 Available endpoints:`);

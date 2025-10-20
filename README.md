@@ -34,10 +34,34 @@ node server-advanced.js
 ```
 
 ### Step 4: Access the Application
-Open your browser and go to:
+
+#### **From Same Computer:**
 ```
 http://localhost:4000
 ```
+
+#### **From Other Computers (Same Network):**
+1. **Find your computer's IP address:**
+```bash
+   # Windows
+   ipconfig
+   
+   # Mac/Linux
+   ifconfig
+   ```
+   Look for "IPv4 Address" (e.g., `192.168.1.100`)
+
+2. **Access from other devices:**
+   ```
+   http://YOUR_IP_ADDRESS:4000
+   # Example: http://192.168.1.100:4000
+   ```
+
+#### **From Internet (Cloud Deployment):**
+For access from anywhere, deploy to:
+- **Heroku** (free tier)
+- **Railway** (free tier)
+- **DigitalOcean** (paid)
 
 ## 🔐 Login Process
 
