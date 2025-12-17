@@ -16,17 +16,21 @@ Ensure you have the following installed:
 ```bash
 # 1. Clone the repository
 git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
+
+# 2. Navigate to the project directory (IMPORTANT!)
 cd ReachInbox-OneBox
 
-# 2. Start Docker services (ensure Docker Desktop is running)
+# 3. Start Docker services (ensure Docker Desktop is running)
 docker-compose up -d
 
-# 3. Install dependencies
+# 4. Install dependencies
 npm install
 
-# 4. Start the application
+# 5. Start the application
 node server-advanced.js
 ```
+
+**⚠️ Important:** Always make sure you're in the correct project directory (`ReachInbox-OneBox`) before running commands. If you get "no configuration file provided: not found" error, you're in the wrong directory.
 
 ### **Step 3: Access the Application**
 - **Open your browser and go to:** http://localhost:4000
@@ -100,6 +104,16 @@ docker-compose down
 ---
 
 ## 🔧 **Troubleshooting**
+
+**❌ "no configuration file provided: not found" error:**
+```bash
+# Make sure you're in the correct project directory:
+cd C:\GitHub\ReachInbox-OneBox-main
+# (or wherever you cloned the repository)
+
+# Then run:
+docker-compose up -d
+```
 
 **❌ "Docker daemon is not running" error:**
 - Make sure **Docker Desktop** is installed and running
