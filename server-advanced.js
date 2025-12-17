@@ -175,26 +175,38 @@ async function fetchGmailEmails(account) {
     const emails = [];
 
     imap.once('ready', () => {
+      console.log(`✅ IMAP connection established for ${account.email}`);
       // Open INBOX
       imap.openBox('INBOX', false, (err, box) => {
         if (err) {
+          console.error(`❌ Failed to open INBOX for ${account.email}:`, err.message);
           reject(err);
           return;
         }
 
-        // Search for recent emails
-        imap.search(['UNSEEN', ['SINCE', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)]], (err, results) => {
+        console.log(`📂 INBOX opened. Total messages: ${box.messages}`);
+        
+        // Search for recent emails (last 30 days, including seen and unseen)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const dateString = sevenDaysAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        
+        console.log(`🔍 Searching for emails since ${dateString}`);
+        
+        imap.search(['ALL', ['SINCE', dateString]], (err, results) => {
           if (err) {
+            console.error(`❌ Search error for ${account.email}:`, err.message);
             reject(err);
             return;
           }
 
           if (!results || results.length === 0) {
+            console.log(`📭 No emails found in the search criteria for ${account.email}`);
             imap.end();
             resolve(emails);
             return;
           }
 
+          console.log(`📧 Found ${results.length} emails to fetch for ${account.email}`);
           const fetch = imap.fetch(results, { bodies: '' });
           let processedCount = 0;
 
@@ -269,9 +281,15 @@ async function fetchGmailEmails(account) {
     });
 
     imap.once('error', (err) => {
+      console.error(`❌ IMAP connection error for ${account.email}:`, err.message);
       reject(err);
     });
 
+    imap.on('end', () => {
+      console.log(`🔌 IMAP connection closed for ${account.email}`);
+    });
+
+    console.log(`🔌 Attempting to connect to IMAP for ${account.email}...`);
     imap.connect();
   });
 }
