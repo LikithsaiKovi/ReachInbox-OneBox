@@ -2,44 +2,45 @@
 
 A production-ready email management system that combines real-time IMAP monitoring, AI-powered categorization, and RAG-based reply suggestions.
 
-## 🎯 **FOR RECRUITERS - QUICK START GUIDE**
+## 🎯 **QUICK START GUIDE**
 
-### **Step 1: Download and Setup (2 minutes)**
+### **Step 1: Prerequisites**
+Ensure you have the following installed:
+- **Node.js** (v18+) - [Download here](https://nodejs.org/)
+- **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/)
 
-**Option A: One-Click Start (Windows)**
+### **Step 2: Setup via Command Prompt**
+
+**Open Command Prompt (Windows: Win+R, type `cmd`, press Enter) or Terminal and run:**
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
 cd ReachInbox-OneBox
 
-# 2. Double-click start-recruiter-demo.bat
-# OR run: start-recruiter-demo.bat
-```
+# 2. Start Docker services (ensure Docker Desktop is running)
+docker-compose up -d
 
-**Option B: Manual Setup**
-```bash
-# 1. Clone the repository
-git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
-cd ReachInbox-OneBox
-
-# 2. Install dependencies
+# 3. Install dependencies
 npm install
 
-# 3. Start the application
-node server-real-gmail.js
+# 4. Start the application
+node server-advanced.js
 ```
 
-### **Step 2: Access the Application**
-- **Open your browser and go to:** `http://localhost:4000`
-- **The application will start automatically with real Gmail integration**
+### **Step 3: Access the Application**
+- **Open your browser and go to:** http://localhost:4000
+- **API Health Check:** http://localhost:4000/health
+- **WebSocket connection:** ws://localhost:8080
 
-### **Step 3: Add Your Gmail Account (Optional but Recommended)**
-1. **Click "Add Gmail Account"** in the interface
-2. **Enter your Gmail email** (e.g., `yourname@gmail.com`)
-3. **Enter your Gmail App Password** (see setup below if you don't have one)
-4. **Click "Add Account"** - emails will start loading automatically
+### **Step 4: Using the Application**
+1. **Add Gmail Account (Optional):**
+   - Click "Add Gmail Account" in the interface
+   - Enter your Gmail email (e.g., `yourname@gmail.com`)
+   - Enter your Gmail App Password (see setup below if you don't have one)
+   - Click "Add Account" - emails will start loading automatically
 
-### **Step 4: Test Key Features**
+2. **Key Features:**
 - ✅ **Search emails** using the search bar
 - ✅ **Filter by categories** (Spam, Interested, Meeting Booked, etc.)
 - ✅ **Filter by date range** using the date picker
@@ -48,8 +49,20 @@ node server-real-gmail.js
 - ✅ **Send real replies** using the reply functionality
 - ✅ **View analytics dashboard** with email statistics
 
-### **🔐 Gmail App Password Setup (If Needed)**
-If you want to connect your real Gmail account:
+### **Step 5: Stopping the Application**
+```bash
+# In the command prompt where the server is running:
+# Press Ctrl+C to stop the Node.js server
+
+# To stop Docker services:
+docker-compose down
+```
+
+---
+
+## 🔐 **Gmail App Password Setup (Optional)**
+
+**Only needed if you want to connect your real Gmail account:**
 
 1. **Enable 2-Factor Authentication:**
    - Go to [Google Account Security](https://myaccount.google.com/security)
@@ -63,7 +76,9 @@ If you want to connect your real Gmail account:
 
 3. **Use this password** when adding your Gmail account in the application
 
-### **🎯 What You'll See**
+---
+
+## 🎯 **What You'll See**
 - **Real-time email fetching** from Gmail
 - **AI-powered categorization** of emails (Spam, Interested, Meeting Booked, etc.)
 - **Advanced filtering** by category, priority, sentiment, and date
@@ -72,7 +87,9 @@ If you want to connect your real Gmail account:
 - **Analytics dashboard** with email statistics
 - **Modern, responsive UI** that works on desktop and mobile
 
-### **🚀 Demo Features to Show**
+---
+
+## 🚀 **Demo Features**
 1. **Add Gmail Account** → Watch emails load in real-time
 2. **Search & Filter** → Use category dropdowns and date filters
 3. **Export Data** → Click "Export CSV" to download filtered results
@@ -80,7 +97,9 @@ If you want to connect your real Gmail account:
 5. **Analytics** → View the dashboard with email statistics
 6. **Real-time Updates** → Watch the WebSocket connection indicator
 
-### **🔧 Quick Troubleshooting**
+---
+
+## 🔧 **Troubleshooting**
 
 **❌ "Docker daemon is not running" error:**
 - Make sure **Docker Desktop** is installed and running
@@ -128,7 +147,9 @@ npm --version
 - Browser opens successfully at `http://localhost:4000`
 - No error messages about Qdrant or database connections
 
-### **📋 What This Application Demonstrates**
+---
+
+## 📋 **Technical Details**
 
 **🎯 Technical Skills:**
 - **Full-Stack Development:** React frontend + Node.js backend
@@ -156,66 +177,27 @@ npm --version
 
 ---
 
-## ⚡ Quick Start (3 minutes)
+## ⚡ **Alternative Server Modes**
 
-### **Prerequisites**
-- **Node.js** (v18 or higher) - [Download here](https://nodejs.org/)
-- **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/)
+After completing the setup steps, you can run different server modes based on your needs:
 
-### **Step-by-Step Setup**
-
-**1️⃣ Clone the Repository**
 ```bash
-git clone https://github.com/LikithsaiKovi/ReachInbox-OneBox.git
-cd ReachInbox-OneBox
-```
-
-**2️⃣ Start Docker Services (Required)**
-```bash
-# Make sure Docker Desktop is running, then:
-docker-compose up -d
-```
-This starts Qdrant (vector database) and Elasticsearch services.
-
-**3️⃣ Install Dependencies**
-```bash
-npm install
-```
-
-**4️⃣ Start the Application**
-```bash
-# For advanced features with all integrations:
+# 1. Advanced Mode (Recommended - All Features)
 node server-advanced.js
+# Includes: RAG, Vector DB, WebSocket, Analytics, Export
 
-# OR for simple Gmail demo:
+# 2. Gmail Integration Mode
 node server-real-gmail.js
+# Includes: Real Gmail IMAP integration
+
+# 3. Demo Mode (No Docker required)
+node server-demo.js
+# Includes: Mock data for testing without external dependencies
 ```
 
-**5️⃣ Open in Browser**
-- **Frontend**: http://localhost:4000
-- **API Health Check**: http://localhost:4000/health
+---
 
-**That's it!** The application is now running with all features enabled.
-
-### **✨ Quick Commands Summary**
-```bash
-# One-time setup:
-docker-compose up -d    # Start required services
-npm install             # Install dependencies
-
-# Every time you want to run:
-node server-advanced.js # Start the server
-```
-
-### **🛑 To Stop the Application**
-```bash
-# Stop the Node.js server: Press Ctrl+C in the terminal
-
-# Stop Docker services:
-docker-compose down
-```
-
-## 📋 **COMPLETE SETUP GUIDE**
+## 📋 **Complete Setup Guide (Detailed)**
 
 ### **Prerequisites Installation**
 
